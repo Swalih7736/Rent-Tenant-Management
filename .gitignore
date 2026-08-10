@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+venv/
+.venv/
+env/
+.env
+
+# Node / JS
+node_modules/
+dist/
+.eslintcache
+.vite/
+
+# System / IDEs
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Local Uploads & Logs
+backend/uploads/
+uploads/
+*.log
