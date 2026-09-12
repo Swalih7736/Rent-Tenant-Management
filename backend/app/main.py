@@ -9,7 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from typing import Optional
 
 from app.config import get_cors_origins
-from app.routes import auth, payments, properties, tenants, users, marketplace
+from app.routes import auth, payments, properties, tenants, users, marketplace, rental_applications
 from app.services.auth import get_current_user
 from app.services.tenant_documents import get_uploads_root
 from app.services.revenue import calculate_total_revenue
@@ -39,6 +39,8 @@ app.include_router(properties.router)
 app.include_router(tenants.router)
 app.include_router(payments.router)
 app.include_router(marketplace.router)
+app.include_router(rental_applications.router)
+
 
 
 @app.on_event("startup")

@@ -96,17 +96,38 @@ def _insert_or_update_payment(sb, data: dict, payment_id: str | None = None):
 async def list_payments(
     tenant_id: str | None = Query(default=None),
     month_covered: str | None = Query(default=None),
-    _: AuthUserOut = Depends(get_current_user),
+    current_user: AuthUserOut = Depends(get_current_user),
 ):
     """Return all payments, optionally filtered by tenant or month."""
     sb = get_supabase_client()
     query = sb.table(TABLE).select("*")
+
+    if current_user.role.lower() == "user":
+        if not current_user.email:
+            return []
+        user_tenants = sb.table("tenants").select("id").eq("email", current_user.email.strip().lower()).execute()
+        t_ids = [t["id"] for t in user_tenants.data] if user_tenants.data else []
+        if not t_ids:
+            return []
+        query = query.in_("tenant_id", t_ids)
+
+    elif current_user.role.lower() in ("owner", "manager"):
+        # Fetch properties owned by current_user
+        prop_res = sb.table("properties").select("id").eq("owner_id", current_user.id).execute()
+        owned_property_ids = [p["id"] for p in prop_res.data] if prop_res.data else []
+        if owned_property_ids:
+            ten_res = sb.table("tenants").select("id").in_("property_id", owned_property_ids).execute()
+            t_ids = [t["id"] for t in ten_res.data] if ten_res.data else []
+            if t_ids:
+                query = query.in_("tenant_id", t_ids)
+
     if tenant_id:
         query = query.eq("tenant_id", tenant_id)
     if month_covered:
         query = query.eq("month_covered", month_covered)
     result = query.order("payment_date", desc=True).execute()
     return result.data
+
 
 
 @router.get("/{payment_id}", response_model=PaymentOut)
@@ -187,9 +208,12 @@ async def create_checkout_order(
     """Generate checkout sessions and pending orders."""
     sb = get_supabase_client()
     
+    item_type = payload.item_type.upper()
+    transaction_type = "BUY" if payload.transaction_type.upper() in ("BUY", "SALE") else "RENT"
+
     # 1. Fetch item to get the seller's/owner's ID
     seller_id = None
-    if payload.item_type == "PROPERTY":
+    if item_type == "PROPERTY":
         prop = get_property_or_404(sb, payload.item_id)
         seller_id = prop.get("owner_id")
     else:  # LISTING
@@ -206,12 +230,13 @@ async def create_checkout_order(
     order_data = {
         "seller_id": seller_id,
         "buyer_id": current_user.id,
-        "item_type": payload.item_type,
+        "item_type": item_type,
         "item_id": payload.item_id,
-        "transaction_type": payload.transaction_type,
+        "transaction_type": transaction_type,
         "amount": payload.amount,
         "payment_status": "PENDING"
     }
+
     
     # 3. Simulate payment gateway session ID
     import uuid

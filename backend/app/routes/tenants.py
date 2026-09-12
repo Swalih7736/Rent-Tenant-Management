@@ -91,8 +91,15 @@ async def list_tenants(
             query = query.eq("property_id", property_id)
         else:
             query = query.in_("property_id", owned_property_ids)
+    elif current_user.role.lower() == "user":
+        if current_user.email:
+            query = query.eq("email", current_user.email.strip().lower())
+        else:
+            return []
     elif property_id:
         query = query.eq("property_id", property_id)
+
+
         
     if status:
         query = query.eq("status", status)

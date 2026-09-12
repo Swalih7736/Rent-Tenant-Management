@@ -3,8 +3,9 @@ Pydantic models (schemas) for Properties, Tenants, and Payments.
 """
 
 from datetime import date, datetime
-from typing import Optional
+from typing import Optional, Union, Any
 from pydantic import BaseModel, Field
+
 
 
 # ──────────────────────────── Properties ────────────────────────────
@@ -330,10 +331,11 @@ class BookingStatusUpdate(BaseModel):
 # ──────────────────────────── Orders & Transactions ────────────────
 
 class OrderCreate(BaseModel):
-    item_type: str = Field(pattern="^(PROPERTY|LISTING)$")
+    item_type: str = Field(pattern="^(PROPERTY|LISTING|property|listing)$")
     item_id: str
-    transaction_type: str = Field(pattern="^(RENT|BUY)$")
+    transaction_type: str = Field(pattern="^(RENT|BUY|SALE|rent|buy|sale)$")
     amount: float = Field(gt=0)
+
 
 
 class OrderOut(BaseModel):
@@ -351,4 +353,81 @@ class OrderOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# ──────────────────────────── Rental Applications ───────────────────
+
+class RentalApplicationBase(BaseModel):
+    property_id: Optional[str] = None
+    listing_id: Optional[str] = None
+    full_name: str
+    email: str
+    phone: str
+    address: Optional[str] = None
+    date_of_birth: Optional[Union[str, date]] = None
+    occupation: Optional[str] = None
+    monthly_income: Optional[float] = None
+    emergency_contact_name: Optional[str] = None
+    emergency_contact_phone: Optional[str] = None
+    lease_start: Optional[Union[str, date]] = None
+    lease_end: Optional[Union[str, date]] = None
+    unit_number: Optional[str] = None
+    rent_amount: float
+    rent_due_day: Optional[int] = 1
+
+
+class RentalApplicationOut(RentalApplicationBase):
+    id: str
+    user_id: str
+    owner_id: str
+    id_proof_file_name: str
+    id_proof_file_url: str
+    status: str
+    id_verification_status: str
+    rejection_reason: Optional[str] = None
+    created_at: Optional[Union[str, datetime]] = None
+    updated_at: Optional[Union[str, datetime]] = None
+    property: Optional[dict] = None
+    listing: Optional[dict] = None
+    owner: Optional[dict] = None
+    applicant: Optional[dict] = None
+
+    class Config:
+        from_attributes = True
+
+
+
+class RentalApplicationReview(BaseModel):
+    status: str = Field(pattern="^(Approved|Rejected|Under Review|APPROVED|REJECTED|UNDER_REVIEW)$")
+    rejection_reason: Optional[str] = None
+    unit_number: Optional[str] = None
+    rent_amount: Optional[float] = None
+    rent_due_day: Optional[int] = None
+    lease_start: Optional[date] = None
+    lease_end: Optional[date] = None
+
+
+class MonthlyRentScheduleItem(BaseModel):
+    month: str  # '2026-08'
+    month_label: str  # 'August 2026'
+    rent_amount: float
+    due_date: str  # '2026-08-05'
+    status: str  # 'PAID', 'PENDING', 'OVERDUE', 'UPCOMING'
+    payment_date: Optional[str] = None
+    amount_paid: Optional[float] = 0.0
+    payment_id: Optional[str] = None
+
+
+class MyRentalDetailsOut(BaseModel):
+    has_active_rental: bool
+    tenant: Optional[dict] = None
+    property: Optional[dict] = None
+    owner: Optional[dict] = None
+    monthly_rent: Optional[float] = None
+    rent_due_day: Optional[int] = None
+    next_due_date: Optional[str] = None
+    current_month_status: Optional[str] = None
+    payment_schedule: list[MonthlyRentScheduleItem] = []
+    applications: list[RentalApplicationOut] = []
+
 
