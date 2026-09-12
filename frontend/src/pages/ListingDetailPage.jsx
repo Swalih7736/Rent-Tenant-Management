@@ -10,8 +10,10 @@ import {
     createCheckoutOrder,
     triggerPaymentWebhook,
 } from '../api';
+import ApplyRentalModal from '../components/ApplyRentalModal';
 
 export default function ListingDetailPage() {
+
     const { listingId } = useParams();
     const navigate = useNavigate();
     const toast = useToast();
@@ -21,10 +23,14 @@ export default function ListingDetailPage() {
     const [loading, setLoading] = useState(true);
     const [activeImage, setActiveImage] = useState('');
 
+    // Apply Rental modal
+    const [showApplyModal, setShowApplyModal] = useState(false);
+
     // Offer modal
     const [showOfferModal, setShowOfferModal] = useState(false);
     const [offerAmount, setOfferAmount] = useState('');
     const [offerSubmitting, setOfferSubmitting] = useState(false);
+
 
     // Booking modal
     const [showBookingModal, setShowBookingModal] = useState(false);
@@ -125,12 +131,13 @@ export default function ListingDetailPage() {
     const handleCheckout = async () => {
         setCheckoutLoading(true);
         try {
+            const tType = (listing.listing_type || '').toUpperCase() === 'SALE' ? 'BUY' : 'RENT';
             // 1. Create order
             const order = await createCheckoutOrder({
                 item_type: 'LISTING',
                 item_id: listingId,
-                transaction_type: listing.listing_type,
-                amount: listing.price,
+                transaction_type: tType,
+                amount: Number(listing.price),
             });
 
             toast.info('Simulating payment checkout flow...');
@@ -157,10 +164,11 @@ export default function ListingDetailPage() {
 
         } catch (err) {
             console.error(err);
-            toast.error('Failed to initiate checkout.');
+            toast.error(err?.response?.data?.detail || 'Failed to initiate checkout.');
             setCheckoutLoading(false);
         }
     };
+
 
     return (
         <div className="space-y-6">
@@ -248,17 +256,28 @@ export default function ListingDetailPage() {
                                     </div>
                                 ) : (
                                     <>
-                                        <button
-                                            onClick={handleCheckout}
-                                            disabled={checkoutLoading}
-                                            className="w-full rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] py-3 text-sm font-semibold text-white transition-all shadow-md flex items-center justify-center gap-1.5"
-                                        >
-                                            {checkoutLoading ? (
-                                                <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                                            ) : (
-                                                <>💳 {listing.listing_type === 'RENT' ? 'Rent Now' : 'Buy Now'}</>
-                                            )}
-                                        </button>
+                                        {listing.listing_type === 'RENT' ? (
+                                            <button
+                                                onClick={() => setShowApplyModal(true)}
+                                                className="w-full rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] py-3 text-sm font-semibold text-white transition-all shadow-md flex items-center justify-center gap-2"
+                                            >
+                                                <span>📄 Apply to Rent</span>
+                                            </button>
+                                        ) : (
+
+                                            <button
+                                                onClick={handleCheckout}
+                                                disabled={checkoutLoading}
+                                                className="w-full rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] py-3 text-sm font-semibold text-white transition-all shadow-md flex items-center justify-center gap-1.5"
+                                            >
+                                                {checkoutLoading ? (
+                                                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                                                ) : (
+                                                    <>💳 Buy Now</>
+                                                )}
+                                            </button>
+                                        )}
+
                                         <div className="grid grid-cols-2 gap-2.5">
                                             <button
                                                 onClick={handleChat}
@@ -365,6 +384,14 @@ export default function ListingDetailPage() {
                     </div>
                 </div>
             )}
+
+            {/* Apply for Rent Modal */}
+            <ApplyRentalModal
+                isOpen={showApplyModal}
+                onClose={() => setShowApplyModal(false)}
+                listing={listing}
+            />
         </div>
     );
 }
+

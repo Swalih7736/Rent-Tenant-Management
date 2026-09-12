@@ -17,8 +17,10 @@ export default function PaymentsPage() {
     const [modalOpen, setModalOpen] = useState(false);
     const [form, setForm] = useState({ tenant_id: '', amount_paid: '', payment_date: new Date().toISOString().slice(0, 10), month_covered: currentMonth(), payment_type: 'rent', note: '' });
     const [filterMonth, setFilterMonth] = useState('');
-    const { canManagePayments } = useAuth();
+    const { user, canManagePayments } = useAuth();
+    const isNormalUser = (user?.role || '').toLowerCase() === 'user';
     const toast = useToast();
+
     const navigate = useNavigate();
 
     const emptyForm = { tenant_id: '', amount_paid: '', payment_date: new Date().toISOString().slice(0, 10), month_covered: currentMonth(), payment_type: 'rent', note: '' };
@@ -45,32 +47,76 @@ export default function PaymentsPage() {
 
     const tenantMap = useMemo(() => Object.fromEntries(tenants.map(t => [t.id, t])), [tenants]);
     const propertyMap = useMemo(() => Object.fromEntries(properties.map(p => [p.id, p])), [properties]);
+
+    // Filter tenants visible to current user
+    const visibleTenants = useMemo(() => {
+        if (!isNormalUser) return tenants;
+        return tenants.filter(t => t.user_id === user?.id || (user?.email && t.email?.toLowerCase() === user.email.toLowerCase()));
+    }, [tenants, isNormalUser, user]);
+
+    const activeTenants = useMemo(() => visibleTenants.filter(t => t.status === 'active'), [visibleTenants]);
+
+    const userTenantIds = useMemo(() => new Set(visibleTenants.map(t => t.id)), [visibleTenants]);
+
+    const visiblePayments = useMemo(() => {
+        if (!isNormalUser) return payments;
+        return payments.filter(p => userTenantIds.has(p.tenant_id));
+    }, [payments, isNormalUser, userTenantIds]);
+
     const filteredPayments = useMemo(
-        () => filterMonth ? payments.filter((payment) => payment.month_covered === filterMonth) : payments,
-        [filterMonth, payments]
+        () => filterMonth ? visiblePayments.filter((payment) => payment.month_covered === filterMonth) : visiblePayments,
+        [filterMonth, visiblePayments]
     );
 
     // Build rent tracking grid: tenant × month → paid/pending
+    // show the months only after the tenant start month of the current year
     const months = useMemo(() => {
         const now = new Date();
+        const currentYear = now.getFullYear();
+        const currentMonthNum = now.getMonth() + 1;
+
+        if (isNormalUser && activeTenants.length > 0) {
+            // Find tenant's lease start
+            let startMonthNum = currentMonthNum;
+            const tLeaseStart = activeTenants[0].lease_start;
+            if (tLeaseStart) {
+                const [ly, lm] = tLeaseStart.slice(0, 7).split('-').map(Number);
+                if (ly === currentYear) {
+                    startMonthNum = lm;
+                } else if (ly < currentYear) {
+                    startMonthNum = 1;
+                } else {
+                    startMonthNum = lm;
+                }
+            }
+
+            const result = [];
+            const endMonthNum = Math.max(startMonthNum, currentMonthNum);
+            for (let m = startMonthNum; m <= endMonthNum; m++) {
+                const mStr = m.toString().padStart(2, '0');
+                result.push(`${currentYear}-${mStr}`);
+            }
+            return result;
+        }
+
+        // For owner/admin: rolling 6 months of current view
         const result = [];
         for (let i = 5; i >= 0; i--) {
             const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-            result.push(d.toISOString().slice(0, 7)); // '2026-03'
+            result.push(d.toISOString().slice(0, 7));
         }
         return result;
-    }, []);
-
-    const activeTenants = tenants.filter(t => t.status === 'active');
+    }, [isNormalUser, activeTenants]);
 
     const paymentTotals = useMemo(() => {
         const totals = {};
-        payments.forEach((payment) => {
+        visiblePayments.forEach((payment) => {
             const key = `${payment.tenant_id}__${payment.month_covered}`;
             totals[key] = (totals[key] || 0) + Number(payment.amount_paid || 0);
         });
         return totals;
-    }, [payments]);
+    }, [visiblePayments]);
+
 
     const formatMonth = (m) => {
         const [y, mo] = m.split('-');
@@ -225,6 +271,17 @@ export default function PaymentsPage() {
                                     <td className="px-5 py-3 font-medium whitespace-nowrap sticky left-0 bg-[var(--color-surface)]">{t.name}</td>
                                     <td className="px-5 py-3 text-[var(--color-text-muted)] whitespace-nowrap">{propertyMap[t.property_id]?.address || '—'}</td>
                                     {months.map(m => {
+                                        const tenantStartMonth = (t.lease_start || '').slice(0, 7);
+                                        const isBeforeStart = tenantStartMonth && m < tenantStartMonth;
+
+                                        if (isBeforeStart) {
+                                            return (
+                                                <td key={m} className="px-4 py-3 text-center text-slate-500 text-xs font-medium">
+                                                    —
+                                                </td>
+                                            );
+                                        }
+
                                         const totalPaid = paymentTotals[`${t.id}__${m}`] || 0;
                                         const rentDue = Number(propertyMap[t.property_id]?.rent_amount || 0);
                                         const status = totalPaid <= 0
@@ -245,6 +302,7 @@ export default function PaymentsPage() {
                                             </td>
                                         );
                                     })}
+
                                 </tr>
                             ))}
                             {activeTenants.length === 0 && (

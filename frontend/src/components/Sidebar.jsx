@@ -1,8 +1,20 @@
+import { useMemo } from 'react';
 import { NavLink } from 'react-router-dom';
 import logo from '../assets/logo.png';
 import { useAuth } from './AuthProvider';
-
-import { useMemo } from 'react';
+import {
+    LayoutDashboard,
+    Home,
+    ClipboardCheck,
+    Store,
+    Calendar,
+    MessageSquare,
+    Building2,
+    Users,
+    CreditCard,
+    BarChart3,
+    ShieldCheck,
+} from 'lucide-react';
 
 export default function Sidebar({ open, onClose }) {
     const { user } = useAuth();
@@ -13,32 +25,33 @@ export default function Sidebar({ open, onClose }) {
         // Links for normal Buyer/Tenant (USER) role
         if (role === 'user') {
             return [
-                { to: '/marketplace', label: 'Marketplace', icon: '🛍️' },
-                { to: '/bookings', label: 'Walkthroughs', icon: '📅' },
-                { to: '/chat', label: 'Chats', icon: '💬' },
-                { to: '/payments', label: 'Payments', icon: '💳' },
+                { to: '/', label: 'My Rental', icon: Home },
+                { to: '/marketplace', label: 'Marketplace', icon: Store },
+                { to: '/bookings', label: 'Walkthroughs', icon: Calendar },
+                { to: '/chat', label: 'Chats', icon: MessageSquare },
+                { to: '/payments', label: 'Payments', icon: CreditCard },
             ];
         }
 
         // Links for Owner, Manager, Admin
         const items = [
-            { to: '/', label: 'Dashboard', icon: '📊' },
-            { to: '/marketplace', label: 'Marketplace', icon: '🛍️' },
-            { to: '/bookings', label: 'Walkthroughs', icon: '📅' },
-            { to: '/chat', label: 'Chats', icon: '💬' },
-            { to: '/properties', label: 'Properties', icon: '🏢' },
-            { to: '/tenants', label: 'Tenants', icon: '👥' },
-            { to: '/payments', label: 'Payments', icon: '💳' },
-            { to: '/reports', label: 'Reports', icon: '📋' },
+            { to: '/', label: 'Dashboard', icon: LayoutDashboard },
+            { to: '/rental-requests', label: 'Rental Requests', icon: ClipboardCheck },
+            { to: '/marketplace', label: 'Marketplace', icon: Store },
+            { to: '/bookings', label: 'Walkthroughs', icon: Calendar },
+            { to: '/chat', label: 'Chats', icon: MessageSquare },
+            { to: '/properties', label: 'Properties', icon: Building2 },
+            { to: '/tenants', label: 'Tenants', icon: Users },
+            { to: '/payments', label: 'Payments', icon: CreditCard },
+            { to: '/reports', label: 'Reports', icon: BarChart3 },
         ];
 
         if (role === 'admin') {
-            items.push({ to: '/users', label: 'Users', icon: '🛡️' });
+            items.push({ to: '/users', label: 'Users', icon: ShieldCheck });
         }
 
         return items;
     }, [user]);
-
 
     return (
         <>
@@ -68,22 +81,22 @@ export default function Sidebar({ open, onClose }) {
 
                 {/* Nav links */}
                 <nav className="flex-1 py-4 px-3 space-y-1">
-                    {links.map(({ to, label, icon }) => (
+                    {links.map(({ to, label, icon: IconComponent }) => (
                         <NavLink
                             key={to}
                             to={to}
                             end={to === '/'}
                             onClick={onClose}
                             className={({ isActive }) =>
-                                `flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-[var(--transition-base)]
+                                `flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-[var(--transition-base)]
                 ${isActive
-                                    ? 'bg-[var(--color-primary)]/15 text-[var(--color-primary-light)] shadow-sm'
+                                    ? 'bg-[var(--color-primary)]/15 text-[var(--color-primary-light)] font-semibold shadow-sm'
                                     : 'text-[var(--color-text-muted)] hover:bg-[var(--color-surface-light)] hover:text-[var(--color-text)]'
                                 }`
                             }
                         >
-                            <span className="text-lg">{icon}</span>
-                            {label}
+                            <IconComponent className="w-4 h-4 shrink-0 transition-transform group-hover:scale-110" />
+                            <span>{label}</span>
                         </NavLink>
                     ))}
                 </nav>

@@ -109,5 +109,20 @@ export const updateBookingStatus = (bookingId, data) => api.post(`/marketplace/b
 export const createCheckoutOrder = (data) => api.post('/payments/create-order', data).then((response) => response.data);
 export const triggerPaymentWebhook = (data) => api.post('/payments/webhook', data).then((response) => response.data);
 
+// ── Rental Applications & User Rental Property ────────────────────
+export const submitRentalApplication = (formData) => api.post('/rental-applications', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+}).then((response) => response.data);
+export const fetchMyRentalApplications = () => api.get('/rental-applications/my').then((response) => response.data);
+export const fetchMyActiveRental = () => api.get('/rental-applications/my-rental/overview').then((response) => response.data);
+export const fetchOwnerRentalRequests = (params) => api.get('/rental-applications/owner-requests', { params }).then((response) => response.data);
+export const fetchRentalApplication = (id) => api.get(`/rental-applications/${id}`).then((response) => response.data);
+export const approveRentalApplication = (id, data) => api.post(`/rental-applications/${id}/approve`, data).then((response) => response.data);
+export const rejectRentalApplication = (id, data) => api.post(`/rental-applications/${id}/reject`, data).then((response) => response.data);
+export const resubmitApplicationIdProof = (id, formData) => api.post(`/rental-applications/${id}/resubmit-id`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+}).then((response) => response.data);
+
 export default api;
+
 

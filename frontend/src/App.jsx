@@ -16,6 +16,8 @@ import MarketplacePage from './pages/MarketplacePage';
 import ListingDetailPage from './pages/ListingDetailPage';
 import ChatPage from './pages/ChatPage';
 import BookingsPage from './pages/BookingsPage';
+import RentalRequestsPage from './pages/RentalRequestsPage';
+
 
 
 function FullscreenSpinner() {
@@ -63,9 +65,11 @@ export default function App() {
                     <Route path="/" element={<DashboardPage />} />
                     <Route path="/marketplace" element={<MarketplacePage />} />
                     <Route path="/marketplace/:listingId" element={<ListingDetailPage />} />
+                    <Route path="/rental-requests" element={<RentalRequestsPage />} />
                     <Route path="/chat" element={<ChatPage />} />
                     <Route path="/bookings" element={<BookingsPage />} />
                     <Route path="/properties" element={<PropertiesPage />} />
+
                     <Route path="/properties/:propertyId" element={<PropertyDetailPage />} />
                     <Route path="/tenants" element={<TenantsPage />} />
                     <Route path="/tenants/:tenantId" element={<TenantDetailPage />} />
