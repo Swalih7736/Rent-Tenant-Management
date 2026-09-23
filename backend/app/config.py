@@ -18,6 +18,11 @@ DEFAULT_CORS_ORIGINS = (
     "http://localhost:5173",
     "http://localhost:5174",
     "http://localhost:3000",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:5174",
+    "http://127.0.0.1:3000",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
     "https://rent-flow-tenant-rent-management.vercel.app",
 )
 
@@ -28,6 +33,8 @@ class Settings:
     supabase_anon_key: str
     supabase_service_role_key: str
     cors_origins: tuple[str, ...]
+    razorpay_key_id: str
+    razorpay_key_secret: str
 
 
 class DatabaseClient:
@@ -85,6 +92,8 @@ def get_settings() -> Settings:
         supabase_anon_key=supabase_anon_key,
         supabase_service_role_key=supabase_service_role_key,
         cors_origins=_parse_cors_origins(os.getenv("BACKEND_CORS_ORIGINS")),
+        razorpay_key_id=os.getenv("RAZORPAY_KEY_ID", "").strip(),
+        razorpay_key_secret=os.getenv("RAZORPAY_KEY_SECRET", "").strip(),
     )
 
 
@@ -130,3 +139,14 @@ def get_admin_auth_client() -> SyncGoTrueClient:
 
 def get_cors_origins() -> list[str]:
     return list(get_settings().cors_origins)
+
+
+def get_razorpay_client():
+    """Return an authenticated Razorpay client using keys from .env."""
+    import razorpay
+    settings = get_settings()
+    if not settings.razorpay_key_id or not settings.razorpay_key_secret:
+        raise RuntimeError(
+            "Missing Razorpay configuration. Set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET in .env"
+        )
+    return razorpay.Client(auth=(settings.razorpay_key_id, settings.razorpay_key_secret))

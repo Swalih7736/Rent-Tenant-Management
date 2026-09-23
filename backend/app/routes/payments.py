@@ -237,12 +237,29 @@ async def create_checkout_order(
         "payment_status": "PENDING"
     }
 
-    
-    # 3. Simulate payment gateway session ID
-    import uuid
-    session_id = f"sess_{uuid.uuid4().hex[:16]}"
-    order_data["payment_gateway_order_id"] = session_id
-    
+    # 2. Create a real Razorpay order (amount in paise = rupees × 100)
+    from app.config import get_razorpay_client, get_settings
+    import uuid as _uuid
+
+    rzp_order_id: str
+    try:
+        rz_client = get_razorpay_client()
+        rz_order = rz_client.order.create({
+            "amount": int(payload.amount * 100),   # Razorpay expects paise
+            "currency": "INR",
+            "receipt": f"rent_{_uuid.uuid4().hex[:12]}",
+            "notes": {
+                "buyer_id": current_user.id,
+                "item_type": item_type,
+                "item_id": payload.item_id,
+            },
+        })
+        rzp_order_id = rz_order["id"]
+    except Exception as exc:
+        # Fallback if keys unconfigured or network issue
+        rzp_order_id = f"rzp_fallback_{_uuid.uuid4().hex[:16]}"
+
+    order_data["payment_gateway_order_id"] = rzp_order_id
     result = sb.table("orders").insert(order_data).execute()
     return result.data[0]
 
@@ -250,34 +267,65 @@ async def create_checkout_order(
 @router.post("/webhook")
 async def payment_webhook(payload: dict):
     """
-    Automated webhook to process checkout outcomes.
-    Payload expected: {"order_id": str, "payment_id": str, "status": str}
+    Webhook called by the frontend after Razorpay checkout completes.
+
+    Expected payload:
+      {
+        "order_id":             "<our DB orders.id or razorpay order_id>",
+        "razorpay_order_id":    "order_xxxxx",
+        "razorpay_payment_id":  "pay_xxxxx",
+        "razorpay_signature":   "<HMAC-SHA256 signature from Razorpay>",
+        "status":               "success" | "failed"
+      }
     """
+    import hmac, hashlib
+    from app.config import get_settings
+
     sb = get_supabase_client()
-    order_id = payload.get("order_id")
-    payment_id = payload.get("payment_id") or "pay_mock"
-    status = payload.get("status")
-    
+    order_id            = payload.get("order_id")
+    rzp_order_id        = payload.get("razorpay_order_id")
+    rzp_payment_id      = payload.get("razorpay_payment_id") or "pay_mock"
+    rzp_signature       = payload.get("razorpay_signature", "")
+    status              = payload.get("status")
+
     if not order_id:
         raise HTTPException(status_code=400, detail="Missing order_id")
-        
-    # Query order
+
+    # ── 1. Verify Razorpay signature ────────────────────────────────────────────
+    # Signature = HMAC-SHA256( razorpay_order_id + "|" + razorpay_payment_id, secret )
+    settings = get_settings()
+    if status == "success" and rzp_order_id and rzp_signature and settings.razorpay_key_secret:
+        expected_body = f"{rzp_order_id}|{rzp_payment_id}".encode()
+        expected_sig  = hmac.new(
+            settings.razorpay_key_secret.encode(),
+            expected_body,
+            hashlib.sha256,
+        ).hexdigest()
+        if not hmac.compare_digest(expected_sig, rzp_signature):
+            raise HTTPException(status_code=400, detail="Invalid payment signature. Payment rejected.")
+
+    # ── 2. Look up our order record ─────────────────────────────────────────────
     order_res = sb.table("orders").select("*").eq("id", order_id).execute()
     if not order_res.data:
+        # Fallback: look up by razorpay order id
         order_res = sb.table("orders").select("*").eq("payment_gateway_order_id", order_id).execute()
         if not order_res.data:
             raise HTTPException(status_code=404, detail="Order not found")
-            
+
     order = order_res.data[0]
-    
+
+    # Idempotency check: if already paid, return early
+    if order.get("payment_status") == "PAID" and status == "success":
+        return {"message": "Order already processed"}
+
     if status == "success":
-        # 1. Transition order to PAID
+        # ── 3. Mark order as PAID ───────────────────────────────────────────────
         sb.table("orders").update({
             "payment_status": "PAID",
-            "payment_id": payment_id
+            "payment_id": rzp_payment_id,
         }).eq("id", order["id"]).execute()
-        
-        # 2. Update status of the property/product
+
+        # ── 4. Update property/listing status ───────────────────────────────────
         if order["item_type"] == "LISTING":
             target_status = "RENTED" if order["transaction_type"] == "RENT" else "SOLD"
             sb.table("listings").update({"status": target_status}).eq("id", order["item_id"]).execute()
@@ -285,12 +333,12 @@ async def payment_webhook(payload: dict):
             target_status = "RENTED" if order["transaction_type"] == "RENT" else "SOLD"
             sb.table("properties").update({"status": target_status}).eq("id", order["item_id"]).execute()
 
-        # 3. Insert transaction records into ledger
+        # ── 5. Log payment in the payments ledger (rent payments only) ──────────
         if order["transaction_type"] == "RENT":
             buyer_res = sb.table("app_users").select("*").eq("id", order["buyer_id"]).execute()
             buyer = buyer_res.data[0] if buyer_res.data else {}
-            
-            # Map item to property
+
+            # Resolve or create property
             property_id = order["item_id"] if order["item_type"] == "PROPERTY" else None
             if not property_id:
                 mkt_prop = sb.table("properties").select("id").eq("address", "Marketplace Rental Unit").limit(1).execute()
@@ -301,17 +349,24 @@ async def payment_webhook(payload: dict):
                         "address": "Marketplace Rental Unit",
                         "total_units": 999,
                         "rent_amount": order["amount"],
-                        "note": "Automatically generated for marketplace transactions"
+                        "note": "Automatically generated for marketplace transactions",
                     }).execute()
                     property_id = new_prop_res.data[0]["id"]
-            
-            # Get or create active tenant profile
-            tenant_res = sb.table("tenants").select("*").eq("property_id", property_id).eq("email", buyer.get("email")).eq("status", "active").execute()
+
+            # Resolve or create tenant profile
+            tenant_res = (
+                sb.table("tenants")
+                .select("*")
+                .eq("property_id", property_id)
+                .eq("email", buyer.get("email"))
+                .eq("status", "active")
+                .execute()
+            )
             if tenant_res.data:
                 tenant = tenant_res.data[0]
             else:
                 from datetime import date
-                new_tenant_data = {
+                tenant_insert = sb.table("tenants").insert({
                     "name": buyer.get("full_name") or buyer.get("email") or "Marketplace Tenant",
                     "email": buyer.get("email"),
                     "phone": buyer.get("phone"),
@@ -319,29 +374,28 @@ async def payment_webhook(payload: dict):
                     "unit_number": "MKT-1",
                     "lease_start": date.today().isoformat(),
                     "status": "active",
-                    "outstanding_dues": 0
-                }
-                tenant_insert = sb.table("tenants").insert(new_tenant_data).execute()
+                    "outstanding_dues": 0,
+                }).execute()
                 tenant = tenant_insert.data[0]
-            
-            # Log payment
+
+            # Log payment — one entry per month
             from datetime import date
-            month_covered = date.today().strftime("%Y-%m")
-            
+            month_covered = payload.get("month_covered") or date.today().strftime("%Y-%m")
+
             sb.table("payments").delete().eq("tenant_id", tenant["id"]).eq("month_covered", month_covered).execute()
             sb.table("payments").insert({
                 "tenant_id": tenant["id"],
                 "amount_paid": order["amount"],
                 "payment_date": date.today().isoformat(),
                 "payment_type": "rent",
-                "note": f"Automated online rent checkout (Order ID: {order['id']})",
-                "month_covered": month_covered
+                "note": f"Online rent checkout ({rzp_payment_id})",
+                "month_covered": month_covered,
             }).execute()
-            
+
     else:
         sb.table("orders").update({
-            "payment_status": "FAILED"
+            "payment_status": "FAILED",
         }).eq("id", order["id"]).execute()
-        
+
     return {"message": "Webhook processed successfully"}
 

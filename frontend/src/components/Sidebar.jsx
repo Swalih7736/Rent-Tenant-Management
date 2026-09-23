@@ -22,8 +22,8 @@ export default function Sidebar({ open, onClose }) {
     const links = useMemo(() => {
         const role = user?.role?.toLowerCase() || '';
         
-        // Links for normal Buyer/Tenant (USER) role
-        if (role === 'user') {
+        // Links for normal Buyer/Tenant (USER / VIEWER) role
+        if (role === 'user' || role === 'viewer') {
             return [
                 { to: '/', label: 'My Rental', icon: Home },
                 { to: '/marketplace', label: 'Marketplace', icon: Store },

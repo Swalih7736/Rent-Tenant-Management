@@ -14,14 +14,16 @@ import {
 import { useToast } from '../components/Toast';
 import { useAuth } from '../components/AuthProvider';
 import Modal from '../components/Modal';
+import PaymentModal from '../components/PaymentModal';
 
 export default function DashboardPage() {
     const { user } = useAuth();
-    const isUser = user && (user.role || '').toLowerCase() === 'user';
+    const isUser = user && ['user', 'viewer'].includes((user.role || '').toLowerCase());
     const isOwnerOrAdmin = user && ['owner', 'admin', 'manager'].includes((user.role || '').toLowerCase());
 
     const toast = useToast();
     const navigate = useNavigate();
+    const [payModalItem, setPayModalItem] = useState(null);
 
     // Owner / Admin stats
     const [stats, setStats] = useState({
@@ -168,25 +170,9 @@ export default function DashboardPage() {
         }
     };
 
-    const handlePayRentNow = async (item) => {
+    const handlePayRentNow = (item) => {
         if (!userRental.tenant?.id) return;
-        setPayingMonth(item.month);
-        try {
-            // Simulated instant rent payment
-            await triggerPaymentWebhook({
-                order_id: `rent_${userRental.tenant.id}_${item.month}`,
-                payment_id: `pay_${Date.now()}`,
-                status: 'success',
-                month_covered: item.month,
-            });
-            toast.success(`Rent payment for ${item.month_label} processed successfully!`);
-            loadUserData();
-        } catch (err) {
-            console.error('Payment error:', err);
-            toast.error('Payment simulation failed.');
-        } finally {
-            setPayingMonth(null);
-        }
+        setPayModalItem(item);
     };
 
     const getPaymentBadge = (status) => {
@@ -531,6 +517,21 @@ export default function DashboardPage() {
                             </div>
                         </form>
                     </Modal>
+                )}
+
+                {/* Razorpay Online Rent Payment Modal */}
+                {payModalItem && userRental.tenant && (
+                    <PaymentModal
+                        tenant={userRental.tenant}
+                        amount={Number(payModalItem.rent_amount || userRental.monthly_rent || 0)}
+                        onClose={() => setPayModalItem(null)}
+                        onSuccess={async () => {
+                            const label = payModalItem.month_label;
+                            setPayModalItem(null);
+                            toast.success(`Rent payment for ${label} recorded successfully!`);
+                            await loadUserData();
+                        }}
+                    />
                 )}
             </div>
         );

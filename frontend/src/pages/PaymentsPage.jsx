@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { fetchPayments, fetchTenants, fetchProperties, createPayment } from '../api';
 import { useAuth } from '../components/AuthProvider';
 import Modal from '../components/Modal';
+import PaymentModal from '../components/PaymentModal';
 import { useToast } from '../components/Toast';
 import { exportDetailsToPdf } from '../utils/exportPdf';
 
@@ -15,10 +16,11 @@ export default function PaymentsPage() {
     const [properties, setProperties] = useState([]);
     const [loading, setLoading] = useState(true);
     const [modalOpen, setModalOpen] = useState(false);
+    const [onlinePayModalOpen, setOnlinePayModalOpen] = useState(false);
     const [form, setForm] = useState({ tenant_id: '', amount_paid: '', payment_date: new Date().toISOString().slice(0, 10), month_covered: currentMonth(), payment_type: 'rent', note: '' });
     const [filterMonth, setFilterMonth] = useState('');
     const { user, canManagePayments } = useAuth();
-    const isNormalUser = (user?.role || '').toLowerCase() === 'user';
+    const isNormalUser = ['user', 'viewer'].includes((user?.role || '').toLowerCase());
     const toast = useToast();
 
     const navigate = useNavigate();
@@ -243,6 +245,14 @@ export default function PaymentsPage() {
                     >
                         Export Statement PDF
                     </button>
+                    {isNormalUser && activeTenants.length > 0 && (
+                        <button
+                            onClick={() => setOnlinePayModalOpen(true)}
+                            className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-cyan-500 hover:from-indigo-500 hover:to-cyan-400 text-white text-sm font-semibold rounded-lg shadow-md transition-all flex items-center gap-1.5"
+                        >
+                            💳 Pay Rent Online (Razorpay)
+                        </button>
+                    )}
                     {canManagePayments && (
                         <button
                             onClick={openNew}
@@ -430,6 +440,20 @@ export default function PaymentsPage() {
                     </div>
                     </form>
                 </Modal>
+            )}
+
+            {/* Online Razorpay Payment Modal */}
+            {onlinePayModalOpen && activeTenants.length > 0 && (
+                <PaymentModal
+                    tenant={activeTenants[0]}
+                    amount={Number(propertyMap[activeTenants[0].property_id]?.rent_amount || 15000)}
+                    onClose={() => setOnlinePayModalOpen(false)}
+                    onSuccess={async () => {
+                        setOnlinePayModalOpen(false);
+                        toast.success('Rent payment processed and recorded successfully!');
+                        await load();
+                    }}
+                />
             )}
         </div>
     );
