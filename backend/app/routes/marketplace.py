@@ -7,6 +7,7 @@ from pathlib import Path
 from app.config import get_supabase_client
 from app.models import (
     AuthUserOut,
+    CommercialListingCreate,
     ListingCategoryOut,
     ListingCreate,
     ListingUpdate,
@@ -42,6 +43,7 @@ async def list_listings(
     city: Optional[str] = Query(default=None),
     category_id: Optional[str] = Query(default=None),
     listing_type: Optional[str] = Query(default=None, pattern="^(RENT|SALE)$"),
+    property_type: Optional[str] = Query(default=None, pattern="^(residential|commercial)$"),
     min_price: Optional[float] = Query(default=None),
     max_price: Optional[float] = Query(default=None),
     status: Optional[str] = Query(default="ACTIVE"),
@@ -58,6 +60,8 @@ async def list_listings(
         query = query.eq("category_id", category_id)
     if listing_type:
         query = query.eq("listing_type", listing_type)
+    if property_type:
+        query = query.eq("property_type", property_type)
     if min_price is not None:
         query = query.gte("price", min_price)
     if max_price is not None:
@@ -82,12 +86,41 @@ async def create_listing(
     payload: ListingCreate,
     current_user: AuthUserOut = Depends(get_current_user),
 ):
-    """Create a new listing. Requires authentication."""
+    """Create a new residential listing. Requires authentication."""
     sb = get_supabase_client()
     data = payload.model_dump()
     data["seller_id"] = current_user.id
     data["status"] = "ACTIVE"
+    data["property_type"] = data.get("property_type", "residential")
     
+    result = sb.table("listings").insert(data).execute()
+    return result.data[0]
+
+
+@router.post("/commercial-listings", response_model=ListingOut, status_code=201)
+async def create_commercial_listing(
+    payload: CommercialListingCreate,
+    current_user: AuthUserOut = Depends(get_current_user),
+):
+    """
+    Create a new commercial space listing.
+    Only owners and admins can post commercial listings.
+    Supports extra fields: square footage, zoning type, lease terms, floor, parking.
+    """
+    if current_user.role.lower() not in ("owner", "admin", "manager"):
+        raise HTTPException(
+            status_code=403,
+            detail="Only property owners or admins can post commercial space listings.",
+        )
+    sb = get_supabase_client()
+    data = payload.model_dump(exclude={"commercial_details"})
+    data["seller_id"] = current_user.id
+    data["status"] = "ACTIVE"
+    data["property_type"] = "commercial"
+    # Store commercial-specific details as JSONB
+    commercial_details = payload.commercial_details.model_dump(exclude_none=False)
+    data["commercial_details"] = commercial_details
+
     result = sb.table("listings").insert(data).execute()
     return result.data[0]
 

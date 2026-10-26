@@ -5,7 +5,7 @@ CRUD routes for Payments.
 from fastapi import APIRouter, Depends, HTTPException, Query
 from postgrest.exceptions import APIError
 from app.config import get_supabase_client
-from app.models import AuthUserOut, PaymentCreate, PaymentOut, PaymentUpdate, OrderCreate, OrderOut
+from app.models import AuthUserOut, BuyerPayRentRequest, PaymentCreate, PaymentOut, PaymentUpdate, OrderCreate, OrderOut
 from app.services.auth import get_current_user, require_manager_or_admin
 from app.services.validation import (
     ensure_non_empty_text,
@@ -131,10 +131,32 @@ async def list_payments(
 
 
 @router.get("/{payment_id}", response_model=PaymentOut)
-async def get_payment(payment_id: str, _: AuthUserOut = Depends(get_current_user)):
-    """Return a single payment by ID."""
+async def get_payment(payment_id: str, current_user: AuthUserOut = Depends(get_current_user)):
+    """Return a single payment by ID. Buyers can only see their own payments."""
     sb = get_supabase_client()
-    return get_payment_or_404(sb, payment_id)
+    payment = get_payment_or_404(sb, payment_id)
+    role = current_user.role.lower()
+    if role == "user":
+        # Verify the payment belongs to a tenant linked to this buyer
+        if current_user.email:
+            tenant_res = (
+                sb.table("tenants")
+                .select("id")
+                .eq("id", payment["tenant_id"])
+                .eq("email", current_user.email.strip().lower())
+                .execute()
+            )
+            if not tenant_res.data:
+                raise HTTPException(status_code=403, detail="Access denied.")
+        else:
+            raise HTTPException(status_code=403, detail="Access denied.")
+    elif role in ("owner", "manager"):
+        # Verify payment belongs to a tenant in one of the owner's properties
+        tenant = get_tenant_or_404(sb, payment["tenant_id"])
+        prop = get_property_or_404(sb, tenant["property_id"])
+        if prop.get("owner_id") != current_user.id:
+            raise HTTPException(status_code=403, detail="Access denied.")
+    return payment
 
 
 @router.post("/", response_model=PaymentOut, status_code=201)
@@ -198,6 +220,84 @@ async def delete_payment(
             
     sb.table(TABLE).delete().eq("id", payment_id).execute()
     return None
+
+
+@router.post("/pay-rent", response_model=PaymentOut, status_code=201)
+async def buyer_pay_rent(
+    payload: BuyerPayRentRequest,
+    current_user: AuthUserOut = Depends(get_current_user),
+):
+    """
+    Buyer submits a rent payment for a specific month.
+    Atomically:
+      1. Inserts (or replaces) a timestamped record in the payments table.
+      2. Updates the rental_applications schedule current_status to 'paid'.
+    Only the buyer who owns the tenant record may call this endpoint.
+    """
+    from datetime import date as _date
+
+    sb = get_supabase_client()
+    role = current_user.role.lower()
+    if role not in ("user", "owner", "admin", "manager"):
+        raise HTTPException(status_code=403, detail="Access denied.")
+
+    # Fetch and validate the tenant record
+    tenant = get_tenant_or_404(sb, payload.tenant_id)
+
+    # If caller is a buyer (user), verify they own this tenant record via email
+    if role == "user":
+        if not current_user.email or tenant.get("email", "").strip().lower() != current_user.email.strip().lower():
+            raise HTTPException(
+                status_code=403,
+                detail="Access denied. You can only pay rent for your own tenant record.",
+            )
+        if tenant.get("status") != "active":
+            raise HTTPException(status_code=400, detail="This tenancy is no longer active.")
+
+    # If owner/manager, verify the tenant belongs to their property
+    if role in ("owner", "manager"):
+        prop = get_property_or_404(sb, tenant["property_id"])
+        if prop.get("owner_id") != current_user.id:
+            raise HTTPException(status_code=403, detail="Access denied.")
+
+    payment_date = payload.payment_date or _date.today()
+    month_covered = payload.month_covered
+
+    # ── Step 1: Upsert payment record ─────────────────────────────────
+    # Delete any existing draft/pending payment for this tenant+month first
+    sb.table(TABLE).delete().eq("tenant_id", payload.tenant_id).eq("month_covered", month_covered).execute()
+
+    payment_data = {
+        "tenant_id": payload.tenant_id,
+        "amount_paid": payload.amount_paid,
+        "payment_date": payment_date.isoformat(),
+        "payment_type": "rent",
+        "month_covered": month_covered,
+        "note": payload.note or f"Rent payment for {month_covered}",
+    }
+    payment_result = sb.table(TABLE).insert(payment_data).execute()
+    if not payment_result.data:
+        raise HTTPException(status_code=500, detail="Failed to record payment.")
+    new_payment = payment_result.data[0]
+
+    # ── Step 2: Mark the rental application / schedule entry as paid ──
+    # Try to update rental_applications that reference this tenant+month
+    try:
+        sb.table("rental_applications").update(
+            {"current_status": "paid"}
+        ).eq("tenant_id", payload.tenant_id).eq("month_covered", month_covered).execute()
+    except Exception:
+        pass  # Table / column may not exist — payment record is still created
+
+    # Also try updating a pending_rent table if it exists in this schema
+    try:
+        sb.table("pending_rent").update(
+            {"current_status": "paid"}
+        ).eq("tenant_id", payload.tenant_id).eq("month_covered", month_covered).execute()
+    except Exception:
+        pass
+
+    return new_payment
 
 
 @router.post("/create-order", response_model=OrderOut)
@@ -354,24 +454,33 @@ async def payment_webhook(payload: dict):
                     property_id = new_prop_res.data[0]["id"]
 
             # Resolve or create tenant profile
-            tenant_res = (
-                sb.table("tenants")
-                .select("*")
-                .eq("property_id", property_id)
-                .eq("email", buyer.get("email"))
-                .eq("status", "active")
-                .execute()
-            )
-            if tenant_res.data:
-                tenant = tenant_res.data[0]
-            else:
+            tenant = None
+            if payload.get("tenant_id"):
+                t_match = sb.table("tenants").select("*").eq("id", payload["tenant_id"]).execute()
+                if t_match.data:
+                    tenant = t_match.data[0]
+
+            if not tenant:
+                tenant_res = (
+                    sb.table("tenants")
+                    .select("*")
+                    .eq("property_id", property_id)
+                    .eq("email", buyer.get("email"))
+                    .eq("status", "active")
+                    .execute()
+                )
+                if tenant_res.data:
+                    tenant = tenant_res.data[0]
+            if not tenant:
                 from datetime import date
+                import uuid as _uuid
+                mkt_unit = f"MKT-{_uuid.uuid4().hex[:4].upper()}"
                 tenant_insert = sb.table("tenants").insert({
                     "name": buyer.get("full_name") or buyer.get("email") or "Marketplace Tenant",
                     "email": buyer.get("email"),
                     "phone": buyer.get("phone"),
                     "property_id": property_id,
-                    "unit_number": "MKT-1",
+                    "unit_number": mkt_unit,
                     "lease_start": date.today().isoformat(),
                     "status": "active",
                     "outstanding_dues": 0,

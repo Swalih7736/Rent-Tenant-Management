@@ -20,11 +20,31 @@ TABLE = "properties"
 
 @router.get("/", response_model=list[PropertyOut])
 async def list_properties(current_user: AuthUserOut = Depends(get_current_user)):
-    """Return all properties."""
+    """Return properties scoped by the caller's role."""
     sb = get_supabase_client()
     query = sb.table(TABLE).select("*")
-    if current_user.role.lower() in ("owner", "manager"):
+
+    role = current_user.role.lower()
+    if role in ("owner", "manager"):
+        # Owner sees only their own properties
         query = query.eq("owner_id", current_user.id)
+    elif role == "user":
+        # Buyer sees only properties they are actively renting
+        if not current_user.email:
+            return []
+        tenant_res = (
+            sb.table("tenants")
+            .select("property_id")
+            .eq("email", current_user.email.strip().lower())
+            .eq("status", "active")
+            .execute()
+        )
+        prop_ids = list({t["property_id"] for t in tenant_res.data}) if tenant_res.data else []
+        if not prop_ids:
+            return []
+        query = query.in_("id", prop_ids)
+    # admin / manager sees all — no filter applied
+
     result = query.execute()
     return result.data
 
@@ -34,8 +54,24 @@ async def get_property(property_id: str, current_user: AuthUserOut = Depends(get
     """Return a single property by ID."""
     sb = get_supabase_client()
     prop = get_property_or_404(sb, property_id)
-    if current_user.role.lower() in ("owner", "manager"):
+    role = current_user.role.lower()
+    if role in ("owner", "manager"):
         if prop.get("owner_id") != current_user.id:
+            raise HTTPException(status_code=403, detail="Access denied.")
+    elif role == "user":
+        # Buyer may only view a property they are actively renting
+        if current_user.email:
+            tenant_res = (
+                sb.table("tenants")
+                .select("id")
+                .eq("property_id", property_id)
+                .eq("email", current_user.email.strip().lower())
+                .eq("status", "active")
+                .execute()
+            )
+            if not tenant_res.data:
+                raise HTTPException(status_code=403, detail="Access denied. You are not renting this property.")
+        else:
             raise HTTPException(status_code=403, detail="Access denied.")
     return prop
 

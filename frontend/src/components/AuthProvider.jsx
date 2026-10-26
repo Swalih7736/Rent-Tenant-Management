@@ -105,10 +105,10 @@ export function AuthProvider({ children }) {
     }, [persistSession]);
 
     const register = useCallback(async (payload) => {
-        const nextSession = await registerUserRequest(payload);
-        persistSession(nextSession);
-        return nextSession;
-    }, [persistSession]);
+        const result = await registerUserRequest(payload);
+        // Do not persist session: user requires admin approval before login
+        return result;
+    }, []);
 
     const bootstrapAdmin = useCallback(async (payload) => {
         const nextSession = await bootstrapAdminRequest(payload);

@@ -176,7 +176,7 @@ export default function ListingDetailPage() {
             <div>
                 <button
                     onClick={() => navigate('/marketplace')}
-                    className="text-xs font-semibold text-[var(--color-primary-light)] hover:underline flex items-center gap-1.5"
+                    className="text-xs font-bold text-amber-400 hover:text-amber-300 hover:underline flex items-center gap-1.5 cursor-pointer"
                 >
                     ← Back to Marketplace
                 </button>
@@ -186,7 +186,7 @@ export default function ListingDetailPage() {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                 {/* Images column */}
                 <div className="lg:col-span-7 space-y-4">
-                    <div className="h-96 w-full rounded-2xl bg-[var(--color-surface-dark)] border border-[var(--color-border)] flex items-center justify-center overflow-hidden">
+                    <div className="h-96 w-full rounded-3xl bg-[var(--color-surface-dark)] border border-[var(--color-border)] flex items-center justify-center overflow-hidden shadow-2xl">
                         {activeImage ? (
                             <img src={activeImage} alt={listing.title} className="w-full h-full object-cover" />
                         ) : (
@@ -199,8 +199,8 @@ export default function ListingDetailPage() {
                                 <button
                                     key={i}
                                     onClick={() => setActiveImage(img)}
-                                    className={`h-16 w-16 rounded-lg overflow-hidden border-2 shrink-0 ${
-                                        activeImage === img ? 'border-[var(--color-primary)]' : 'border-transparent'
+                                    className={`h-16 w-16 rounded-xl overflow-hidden border-2 shrink-0 cursor-pointer transition-all ${
+                                        activeImage === img ? 'border-amber-400 ring-2 ring-amber-400/40 scale-105' : 'border-transparent opacity-60 hover:opacity-100'
                                     }`}
                                 >
                                     <img src={img} alt="" className="w-full h-full object-cover" />
@@ -212,46 +212,46 @@ export default function ListingDetailPage() {
 
                 {/* Details column */}
                 <div className="lg:col-span-5 space-y-6">
-                    <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-3xl p-6 space-y-4">
+                    <div className="glass-card rounded-3xl p-6 sm:p-8 space-y-5">
                         <div className="flex items-center justify-between">
-                            <span className={`text-[10px] font-bold tracking-wider uppercase px-2 py-0.5 rounded ${
-                                listing.listing_type === 'RENT' ? 'bg-cyan-500 text-white' : 'bg-emerald-500 text-white'
+                            <span className={`text-[10px] font-extrabold tracking-wider uppercase px-2.5 py-1 rounded-lg shadow-sm ${
+                                listing.listing_type === 'RENT' ? 'bg-amber-500 text-slate-950 ring-1 ring-amber-300' : 'bg-emerald-500 text-slate-950 ring-1 ring-emerald-300'
                             }`}>
                                 {listing.listing_type === 'RENT' ? 'For Rent' : 'For Sale'}
                             </span>
-                            <span className={`text-[10px] font-bold tracking-wider uppercase px-2 py-0.5 rounded ${
+                            <span className={`text-[10px] font-extrabold tracking-wider uppercase px-2.5 py-1 rounded-lg ${
                                 listing.status === 'ACTIVE'
-                                    ? 'bg-emerald-500/10 text-emerald-400'
-                                    : 'bg-red-500/10 text-red-400'
+                                    ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                                    : 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
                             }`}>
                                 {listing.status}
                             </span>
                         </div>
 
                         <div>
-                            <h1 className="text-2xl font-bold tracking-tight text-white">{listing.title}</h1>
+                            <h1 className="text-2xl font-extrabold tracking-tight text-white">{listing.title}</h1>
                             <p className="text-xs text-[var(--color-text-muted)] mt-1.5">{listing.city}{listing.locality ? `, ${listing.locality}` : ''}</p>
                         </div>
 
-                        <div className="text-2xl font-black text-white">
+                        <div className="text-3xl font-black text-amber-400">
                             ${listing.price.toLocaleString()}
                             {listing.listing_type === 'RENT' && <span className="text-xs font-normal text-[var(--color-text-muted)]">/{listing.rent_frequency}</span>}
                         </div>
 
-                        <hr className="border-white/10" />
+                        <hr className="border-[var(--color-border)]" />
 
                         <div className="space-y-2">
-                            <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)]">Description</h3>
-                            <p className="text-sm leading-relaxed">{listing.description || 'No description provided.'}</p>
+                            <h3 className="text-xs font-bold uppercase tracking-wider text-amber-400/90">Description</h3>
+                            <p className="text-xs leading-relaxed text-slate-200">{listing.description || 'No description provided.'}</p>
                         </div>
 
-                        <hr className="border-white/10" />
+                        <hr className="border-[var(--color-border)]" />
 
                         {/* Actions */}
                         {listing.status === 'ACTIVE' && (
-                            <div className="space-y-2.5 pt-2">
+                            <div className="space-y-3 pt-2">
                                 {isOwnListing ? (
-                                    <div className="text-xs text-center font-medium bg-white/5 border border-white/10 py-3 px-4 rounded-xl">
+                                    <div className="text-xs text-center font-medium bg-amber-500/10 border border-amber-500/20 text-amber-300 py-3 px-4 rounded-xl">
                                         This is your listing. You can edit this item's info or manage offers via chat.
                                     </div>
                                 ) : (
@@ -259,7 +259,7 @@ export default function ListingDetailPage() {
                                         {listing.listing_type === 'RENT' ? (
                                             <button
                                                 onClick={() => setShowApplyModal(true)}
-                                                className="w-full rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] py-3 text-sm font-semibold text-white transition-all shadow-md flex items-center justify-center gap-2"
+                                                className="w-full rounded-xl gold-glow-btn py-3 text-sm font-bold flex items-center justify-center gap-2 cursor-pointer"
                                             >
                                                 <span>📄 Apply to Rent</span>
                                             </button>
@@ -268,10 +268,10 @@ export default function ListingDetailPage() {
                                             <button
                                                 onClick={handleCheckout}
                                                 disabled={checkoutLoading}
-                                                className="w-full rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] py-3 text-sm font-semibold text-white transition-all shadow-md flex items-center justify-center gap-1.5"
+                                                className="w-full rounded-xl gold-glow-btn py-3 text-sm font-bold flex items-center justify-center gap-1.5 cursor-pointer"
                                             >
                                                 {checkoutLoading ? (
-                                                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                                                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-950 border-t-transparent" />
                                                 ) : (
                                                     <>💳 Buy Now</>
                                                 )}
@@ -281,20 +281,20 @@ export default function ListingDetailPage() {
                                         <div className="grid grid-cols-2 gap-2.5">
                                             <button
                                                 onClick={handleChat}
-                                                className="rounded-xl border border-[var(--color-border)] hover:bg-white/5 py-2.5 text-xs font-semibold text-white transition-colors"
+                                                className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-dark)] hover:border-amber-400 hover:text-amber-400 py-2.5 text-xs font-bold text-white transition-all cursor-pointer"
                                             >
                                                 💬 Contact Seller
                                             </button>
                                             <button
                                                 onClick={() => setShowOfferModal(true)}
-                                                className="rounded-xl border border-[var(--color-border)] hover:bg-white/5 py-2.5 text-xs font-semibold text-white transition-colors"
+                                                className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-dark)] hover:border-amber-400 hover:text-amber-400 py-2.5 text-xs font-bold text-white transition-all cursor-pointer"
                                             >
                                                 🤝 Make an Offer
                                             </button>
                                         </div>
                                         <button
                                             onClick={() => setShowBookingModal(true)}
-                                            className="w-full rounded-xl border border-[var(--color-border)] hover:bg-white/5 py-2.5 text-xs font-semibold text-white transition-colors"
+                                            className="w-full rounded-xl border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 py-2.5 text-xs font-bold text-amber-300 transition-all cursor-pointer"
                                         >
                                             📅 Schedule Site Walkthrough
                                         </button>
@@ -308,12 +308,13 @@ export default function ListingDetailPage() {
 
             {/* Offer Modal */}
             {showOfferModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-                    <div className="bg-[var(--color-surface)] border border-[var(--color-border)] w-full max-w-sm rounded-3xl shadow-xl overflow-hidden animate-in fade-in zoom-in duration-200">
-                        <div className="px-6 py-4 border-b border-[var(--color-border)] flex justify-between items-center">
-                            <h2 className="text-md font-bold text-white">Make a Counter Offer</h2>
-                            <button onClick={() => setShowOfferModal(false)} className="text-[var(--color-text-muted)] hover:text-white">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md">
+                    <div className="bg-[var(--color-surface)] border border-amber-500/20 w-full max-w-sm rounded-3xl shadow-2xl shadow-black/80 overflow-hidden animate-fade-in-up">
+                        <div className="h-1 w-full bg-gradient-to-r from-transparent via-amber-400 to-transparent" />
+                        <div className="px-6 py-4 border-b border-[var(--color-border)] flex justify-between items-center bg-[var(--color-surface-dark)]/40">
+                            <h2 className="text-sm font-bold text-white">Make a Counter Offer</h2>
+                            <button onClick={() => setShowOfferModal(false)} className="text-[var(--color-text-muted)] hover:text-white cursor-pointer">
+                                ✕
                             </button>
                         </div>
                         <form onSubmit={handleOfferSubmit} className="p-6 space-y-4">
@@ -324,14 +325,14 @@ export default function ListingDetailPage() {
                                     required
                                     value={offerAmount}
                                     onChange={(e) => setOfferAmount(e.target.value)}
-                                    className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-dark)] px-4 py-2.5 text-sm text-white focus:outline-none"
+                                    className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-dark)] px-4 py-2.5 text-sm text-white focus:border-amber-400 focus:outline-none"
                                     placeholder={listing.price.toString()}
                                 />
                             </div>
                             <button
                                 type="submit"
                                 disabled={offerSubmitting}
-                                className="w-full rounded-xl bg-[var(--color-primary)] py-2.5 text-xs font-bold text-white transition-colors disabled:opacity-60"
+                                className="w-full rounded-xl gold-glow-btn py-2.5 text-xs font-bold disabled:opacity-60 cursor-pointer"
                             >
                                 {offerSubmitting ? 'Sending...' : 'Submit Counter Offer'}
                             </button>
@@ -342,12 +343,13 @@ export default function ListingDetailPage() {
 
             {/* Visit Booking Modal */}
             {showBookingModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-                    <div className="bg-[var(--color-surface)] border border-[var(--color-border)] w-full max-w-sm rounded-3xl shadow-xl overflow-hidden animate-in fade-in zoom-in duration-200">
-                        <div className="px-6 py-4 border-b border-[var(--color-border)] flex justify-between items-center">
-                            <h2 className="text-md font-bold text-white">Book Site Walkthrough</h2>
-                            <button onClick={() => setShowBookingModal(false)} className="text-[var(--color-text-muted)] hover:text-white">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md">
+                    <div className="bg-[var(--color-surface)] border border-amber-500/20 w-full max-w-sm rounded-3xl shadow-2xl shadow-black/80 overflow-hidden animate-fade-in-up">
+                        <div className="h-1 w-full bg-gradient-to-r from-transparent via-amber-400 to-transparent" />
+                        <div className="px-6 py-4 border-b border-[var(--color-border)] flex justify-between items-center bg-[var(--color-surface-dark)]/40">
+                            <h2 className="text-sm font-bold text-white">Book Site Walkthrough</h2>
+                            <button onClick={() => setShowBookingModal(false)} className="text-[var(--color-text-muted)] hover:text-white cursor-pointer">
+                                ✕
                             </button>
                         </div>
                         <form onSubmit={handleBookingSubmit} className="p-6 space-y-4">
@@ -358,7 +360,7 @@ export default function ListingDetailPage() {
                                     required
                                     value={bookingDate}
                                     onChange={(e) => setBookingDate(e.target.value)}
-                                    className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-dark)] px-4 py-2.5 text-sm text-white focus:outline-none"
+                                    className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-dark)] px-4 py-2.5 text-sm text-white focus:border-amber-400 focus:outline-none"
                                 />
                             </div>
                             <div>
@@ -366,7 +368,7 @@ export default function ListingDetailPage() {
                                 <select
                                     value={bookingSlot}
                                     onChange={(e) => setBookingSlot(e.target.value)}
-                                    className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-dark)] px-4 py-2.5 text-sm text-white focus:outline-none"
+                                    className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-dark)] px-4 py-2.5 text-sm text-white focus:border-amber-400 focus:outline-none"
                                 >
                                     <option value="MORNING">Morning (9 AM - 12 PM)</option>
                                     <option value="AFTERNOON">Afternoon (12 PM - 4 PM)</option>
@@ -376,7 +378,7 @@ export default function ListingDetailPage() {
                             <button
                                 type="submit"
                                 disabled={bookingSubmitting}
-                                className="w-full rounded-xl bg-[var(--color-primary)] py-2.5 text-xs font-bold text-white transition-colors disabled:opacity-60"
+                                className="w-full rounded-xl gold-glow-btn py-2.5 text-xs font-bold disabled:opacity-60 cursor-pointer"
                             >
                                 {bookingSubmitting ? 'Booking...' : 'Book Walkthrough'}
                             </button>

@@ -1,7 +1,7 @@
 import { createPortal } from 'react-dom';
 
 /**
- * Reusable modal dialog with glass-morphism backdrop.
+ * Reusable luxury modal dialog with glass-morphism backdrop.
  */
 export default function Modal({
     open,
@@ -26,19 +26,22 @@ export default function Modal({
         <div className="fixed inset-0 z-50 overflow-y-auto">
             {/* Backdrop */}
             <div
-                className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                className="fixed inset-0 bg-black/75 backdrop-blur-md transition-opacity"
                 onClick={onClose}
             />
 
             <div className="relative flex min-h-full items-center justify-center p-4 sm:p-6">
                 {/* Panel */}
-                <div className={`relative flex max-h-[calc(100vh-2rem)] sm:max-h-[calc(100vh-3rem)] w-full ${sizeClass} flex-col overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl animate-fade-in-up`}>
+                <div className={`relative flex max-h-[calc(100vh-2rem)] sm:max-h-[calc(100vh-3rem)] w-full ${sizeClass} flex-col overflow-hidden rounded-3xl border border-amber-500/20 bg-[var(--color-surface)]/95 shadow-2xl shadow-black/80 backdrop-blur-2xl animate-fade-in-up`}>
+                    {/* Top gold accent line */}
+                    <div className="h-1 w-full bg-gradient-to-r from-transparent via-amber-500/60 to-transparent" />
+
                     {/* Header */}
-                    <div className="flex items-center justify-between border-b border-[var(--color-border)] px-6 py-4 shrink-0">
-                        <h2 className="text-lg font-semibold">{title}</h2>
+                    <div className="flex items-center justify-between border-b border-[var(--color-border)] px-6 py-4 shrink-0 bg-[var(--color-surface-dark)]/40">
+                        <h2 className="text-base font-bold text-white tracking-tight">{title}</h2>
                         <button
                             onClick={onClose}
-                            className="text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors text-xl leading-none"
+                            className="w-8 h-8 rounded-full flex items-center justify-center text-[var(--color-text-muted)] hover:text-white hover:bg-white/10 transition-colors text-sm font-semibold cursor-pointer"
                         >
                             ✕
                         </button>

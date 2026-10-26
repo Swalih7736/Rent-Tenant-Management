@@ -50,22 +50,22 @@ export default function PropertiesPage() {
     if (loading) {
         return (
             <div className="flex items-center justify-center h-64">
-                <div className="w-8 h-8 border-2 border-[var(--color-primary)] border-t-transparent rounded-full animate-spin" />
+                <div className="w-9 h-9 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
             </div>
         );
     }
 
     return (
         <div className="space-y-6 animate-fade-in-up">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-[var(--color-border)] pb-5">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight">Properties</h1>
-                    <p className="text-[var(--color-text-muted)] text-sm mt-1">{properties.length} total</p>
+                    <h1 className="text-2xl font-extrabold tracking-tight text-white gold-gradient-text">Properties Management</h1>
+                    <p className="text-[var(--color-text-muted)] text-sm mt-1">{properties.length} luxury propert{properties.length === 1 ? 'y' : 'ies'} registered</p>
                 </div>
                 {canManageProperties && (
                     <button
                         onClick={openNew}
-                        className="px-4 py-2 bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white text-sm font-medium rounded-lg transition-colors"
+                        className="gold-glow-btn px-4 py-2.5 text-xs font-bold rounded-xl transition-all cursor-pointer self-start sm:self-auto"
                     >
                         + Add Property
                     </button>
@@ -73,18 +73,18 @@ export default function PropertiesPage() {
             </div>
 
             {/* Table */}
-            <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl overflow-hidden">
+            <div className="glass-card rounded-2xl overflow-hidden shadow-lg border border-[var(--color-border)]">
                 <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
+                    <table className="w-full text-xs">
                         <thead>
-                            <tr className="border-b border-[var(--color-border)] text-left text-[var(--color-text-muted)] text-xs uppercase tracking-wider">
-                                <th className="px-5 py-3">Property name</th>
-                                <th className="px-5 py-3">Units</th>
-                                <th className="px-5 py-3">Rent (₹)</th>
-                                <th className="px-5 py-3">Note</th>
+                            <tr className="border-b border-[var(--color-border)] bg-[var(--color-surface-dark)]/50 text-left text-[var(--color-text-muted)] uppercase tracking-wider font-bold">
+                                <th className="px-5 py-3.5">Property name</th>
+                                <th className="px-5 py-3.5">Total Units</th>
+                                <th className="px-5 py-3.5">Rent Amount (₹)</th>
+                                <th className="px-5 py-3.5">Note</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-[var(--color-border)]">
+                        <tbody className="divide-y divide-[var(--color-border)]/60 text-slate-200">
                             {properties.map(p => (
                                 <tr
                                     key={p.id}
@@ -97,16 +97,19 @@ export default function PropertiesPage() {
                                             navigate(`/properties/${p.id}`);
                                         }
                                     }}
-                                    className="cursor-pointer transition-colors hover:bg-[var(--color-surface-light)]/40 focus:bg-[var(--color-surface-light)]/40 focus:outline-none"
+                                    className="cursor-pointer transition-colors hover:bg-amber-500/5 focus:bg-amber-500/5 focus:outline-none"
                                 >
-                                    <td className="px-5 py-3 font-medium">{p.address}</td>
-                                    <td className="px-5 py-3">{p.total_units}</td>
-                                    <td className="px-5 py-3">₹{Number(p.rent_amount).toLocaleString()}</td>
-                                    <td className="px-5 py-3 text-[var(--color-text-muted)] text-xs max-w-[200px] truncate">{p.note || '—'}</td>
+                                    <td className="px-5 py-4 font-bold text-white flex items-center gap-2">
+                                        <span className="text-amber-400">🏢</span>
+                                        <span>{p.address}</span>
+                                    </td>
+                                    <td className="px-5 py-4 font-semibold">{p.total_units} units</td>
+                                    <td className="px-5 py-4 font-bold text-amber-400">₹{Number(p.rent_amount).toLocaleString()}</td>
+                                    <td className="px-5 py-4 text-[var(--color-text-muted)] max-w-[200px] truncate">{p.note || '—'}</td>
                                 </tr>
                             ))}
                             {properties.length === 0 && (
-                                <tr><td colSpan={4} className="px-5 py-8 text-center text-[var(--color-text-muted)]">No properties yet. Add one above!</td></tr>
+                                <tr><td colSpan={4} className="px-5 py-12 text-center text-[var(--color-text-muted)]">No properties found. Click "+ Add Property" above to create one.</td></tr>
                             )}
                         </tbody>
                     </table>
@@ -115,42 +118,44 @@ export default function PropertiesPage() {
 
             {/* Modal */}
             {canManageProperties && (
-                <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Add Property">
+                <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Add New Property">
                     <form onSubmit={handleSubmit} className="space-y-4">
                         <div>
-                            <label className="block text-xs text-[var(--color-text-muted)] mb-1">Property name</label>
+                            <label className="block text-xs font-semibold text-[var(--color-text-muted)] mb-1">Property Name / Address</label>
                             <input
                                 required value={form.address} onChange={e => set('address', e.target.value)}
-                                className="w-full px-3 py-2 bg-[var(--color-surface-dark)] border border-[var(--color-border)] rounded-lg text-sm focus:outline-none focus:border-[var(--color-primary)] transition-colors"
+                                placeholder="e.g. Royal Heights Residency"
+                                className="w-full px-3.5 py-2.5 bg-[var(--color-surface-dark)] border border-[var(--color-border)] rounded-xl text-xs text-white focus:outline-none focus:border-amber-400 transition-colors"
                             />
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-xs text-[var(--color-text-muted)] mb-1">Total Units</label>
+                                <label className="block text-xs font-semibold text-[var(--color-text-muted)] mb-1">Total Units</label>
                                 <input
                                     type="number" min="1" required value={form.total_units} onChange={e => set('total_units', +e.target.value)}
-                                    className="w-full px-3 py-2 bg-[var(--color-surface-dark)] border border-[var(--color-border)] rounded-lg text-sm focus:outline-none focus:border-[var(--color-primary)] transition-colors"
+                                    className="w-full px-3.5 py-2.5 bg-[var(--color-surface-dark)] border border-[var(--color-border)] rounded-xl text-xs text-white focus:outline-none focus:border-amber-400 transition-colors"
                                 />
                             </div>
                             <div>
-                                <label className="block text-xs text-[var(--color-text-muted)] mb-1">Rent Amount (₹)</label>
+                                <label className="block text-xs font-semibold text-[var(--color-text-muted)] mb-1">Rent Amount (₹)</label>
                                 <input
                                     type="number" min="0" step="0.01" required value={form.rent_amount} onChange={e => set('rent_amount', +e.target.value)}
-                                    className="w-full px-3 py-2 bg-[var(--color-surface-dark)] border border-[var(--color-border)] rounded-lg text-sm focus:outline-none focus:border-[var(--color-primary)] transition-colors"
+                                    placeholder="25000"
+                                    className="w-full px-3.5 py-2.5 bg-[var(--color-surface-dark)] border border-[var(--color-border)] rounded-xl text-xs text-white focus:outline-none focus:border-amber-400 transition-colors"
                                 />
                             </div>
                         </div>
                         <div>
-                            <label className="block text-xs text-[var(--color-text-muted)] mb-1">Note</label>
+                            <label className="block text-xs font-semibold text-[var(--color-text-muted)] mb-1">Note / Description</label>
                             <textarea
                                 rows="3" value={form.note} onChange={e => set('note', e.target.value)}
                                 placeholder="Add any additional details about this property..."
-                                className="w-full px-3 py-2 bg-[var(--color-surface-dark)] border border-[var(--color-border)] rounded-lg text-sm focus:outline-none focus:border-[var(--color-primary)] transition-colors resize-none"
+                                className="w-full px-3.5 py-2.5 bg-[var(--color-surface-dark)] border border-[var(--color-border)] rounded-xl text-xs text-white focus:outline-none focus:border-amber-400 transition-colors resize-none"
                             />
                         </div>
                         <div className="flex justify-end gap-3 pt-2">
-                            <button type="button" onClick={() => setModalOpen(false)} className="px-4 py-2 text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors">Cancel</button>
-                            <button type="submit" className="px-4 py-2 bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white text-sm font-medium rounded-lg transition-colors">Add Property</button>
+                            <button type="button" onClick={() => setModalOpen(false)} className="px-4 py-2 text-xs font-semibold text-[var(--color-text-muted)] hover:text-white transition-colors cursor-pointer">Cancel</button>
+                            <button type="submit" className="gold-glow-btn px-5 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer">Add Property</button>
                         </div>
                     </form>
                 </Modal>

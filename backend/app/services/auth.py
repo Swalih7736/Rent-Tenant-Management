@@ -49,14 +49,21 @@ def _get_user_full_name(auth_user: Any) -> str | None:
 
 
 def _serialize_auth_user(auth_user: Any, profile: dict) -> AuthUserOut:
+    meta = getattr(auth_user, "user_metadata", {}) or {}
+    role = profile.get("role", ROLE_VIEWER)
+    is_approved = profile.get("is_approved") if profile.get("is_approved") is not None else meta.get("is_approved", role == ROLE_ADMIN)
+    is_rejected = profile.get("is_rejected") if profile.get("is_rejected") is not None else meta.get("is_rejected", False)
     return AuthUserOut(
         id=str(auth_user.id),
         email=getattr(auth_user, "email", None),
         full_name=profile.get("full_name") or _get_user_full_name(auth_user),
-        role=profile.get("role", ROLE_VIEWER),
+        role=role,
         is_active=bool(profile.get("is_active", True)),
-        phone=profile.get("phone"),
-        company_or_agency=profile.get("company_or_agency"),
+        is_approved=is_approved,
+        is_rejected=is_rejected,
+        rejection_reason=profile.get("rejection_reason") or meta.get("rejection_reason"),
+        phone=profile.get("phone") or meta.get("phone"),
+        company_or_agency=profile.get("company_or_agency") or meta.get("company_or_agency"),
     )
 
 
@@ -126,6 +133,24 @@ def login_user(email: str, password: str) -> AuthSessionOut:
     if not profile.get("is_active", True):
         raise HTTPException(status_code=403, detail="This user account has been disabled.")
 
+    role = profile.get("role", ROLE_VIEWER).lower()
+    # Admins are always allowed through
+    if role not in (ROLE_ADMIN,):
+        meta = getattr(auth_user, "user_metadata", {}) or {}
+        is_rejected = profile.get("is_rejected") if profile.get("is_rejected") is not None else meta.get("is_rejected", False)
+        if is_rejected:
+            reason = profile.get("rejection_reason") or meta.get("rejection_reason") or "Your account registration was rejected."
+            raise HTTPException(
+                status_code=403,
+                detail=f"ACCOUNT_REJECTED: {reason}",
+            )
+        is_approved = profile.get("is_approved") if profile.get("is_approved") is not None else meta.get("is_approved", False)
+        if not is_approved:
+            raise HTTPException(
+                status_code=403,
+                detail="ACCOUNT_PENDING: Your account is awaiting admin approval. Please wait for an administrator to activate your account.",
+            )
+
     return AuthSessionOut(
         access_token=response.session.access_token,
         refresh_token=response.session.refresh_token,
@@ -147,6 +172,23 @@ def refresh_user_session(refresh_token: str) -> AuthSessionOut:
     profile = _get_app_user_profile(get_db_client(), auth_user)
     if not profile.get("is_active", True):
         raise HTTPException(status_code=403, detail="This user account has been disabled.")
+
+    role = profile.get("role", ROLE_VIEWER).lower()
+    if role not in (ROLE_ADMIN,):
+        meta = getattr(auth_user, "user_metadata", {}) or {}
+        is_rejected = profile.get("is_rejected") if profile.get("is_rejected") is not None else meta.get("is_rejected", False)
+        if is_rejected:
+            reason = profile.get("rejection_reason") or meta.get("rejection_reason") or "Your account registration was rejected."
+            raise HTTPException(
+                status_code=403,
+                detail=f"ACCOUNT_REJECTED: {reason}",
+            )
+        is_approved = profile.get("is_approved") if profile.get("is_approved") is not None else meta.get("is_approved", False)
+        if not is_approved:
+            raise HTTPException(
+                status_code=403,
+                detail="ACCOUNT_PENDING: Your account is awaiting admin approval.",
+            )
 
     return AuthSessionOut(
         access_token=response.session.access_token,
@@ -173,7 +215,7 @@ def bootstrap_admin(email: str, password: str, full_name: str | None = None) -> 
                 "email": email,
                 "password": password,
                 "email_confirm": True,
-                "user_metadata": {"full_name": full_name} if full_name else {},
+                "user_metadata": {"full_name": full_name, "is_approved": False, "is_rejected": False, "phone": phone, "company_or_agency": company_or_agency},
             }
         )
     except Exception as exc:
@@ -187,6 +229,8 @@ def bootstrap_admin(email: str, password: str, full_name: str | None = None) -> 
             "full_name": full_name,
             "role": ROLE_ADMIN,
             "is_active": True,
+            "is_approved": True,  # Admin is always pre-approved
+            "is_rejected": False,
         }
     ).execute()
 
@@ -200,7 +244,8 @@ def register_new_user(
     role: str = ROLE_VIEWER,
     phone: str | None = None,
     company_or_agency: str | None = None,
-) -> AuthSessionOut:
+) -> dict:
+    """Register a new user. Account is created but requires admin approval before login."""
     try:
         admin_client = get_admin_auth_client()
     except RuntimeError as exc:
@@ -216,22 +261,65 @@ def register_new_user(
             }
         )
     except Exception as exc:
+        err_str = str(exc).lower()
+        if "already" in err_str or "exists" in err_str:
+            db = get_db_client()
+            existing = db.table("app_users").select("*").eq("email", email).execute()
+            if existing.data:
+                prof = existing.data[0]
+                if prof.get("is_rejected"):
+                    reason = prof.get("rejection_reason") or "Your registration was rejected by an administrator."
+                    raise HTTPException(status_code=409, detail=f"ACCOUNT_REJECTED: {reason}")
+                if prof.get("is_approved") is False:
+                    raise HTTPException(
+                        status_code=409,
+                        detail="ACCOUNT_PENDING: Your registration was already submitted and is awaiting administrator approval. Please wait for approval before logging in.",
+                    )
+                raise HTTPException(status_code=409, detail="An account with this email already exists and is active. Please proceed to Sign In.")
+            raise HTTPException(status_code=409, detail="An account with this email already exists. If you recently registered, please wait for admin approval.")
         raise to_auth_http_exception(exc) from exc
 
     db = get_db_client()
-    db.table("app_users").insert(
-        {
-            "id": str(response.user.id),
-            "email": email,
-            "full_name": full_name,
-            "role": role.lower(),
-            "phone": phone,
-            "company_or_agency": company_or_agency,
-            "is_active": True,
-        }
-    ).execute()
+    try:
+        db.table("app_users").insert(
+            {
+                "id": str(response.user.id),
+                "email": email,
+                "full_name": full_name,
+                "role": role.lower(),
+                "phone": phone,
+                "company_or_agency": company_or_agency,
+                "is_active": True,
+                "is_approved": False,   # Must be approved by admin before login
+                "is_rejected": False,
+            }
+        ).execute()
+    except Exception as db_exc:
+        try:
+            db.table("app_users").insert(
+                {
+                    "id": str(response.user.id),
+                    "email": email,
+                    "full_name": full_name,
+                    "role": role.lower(),
+                    "phone": phone,
+                    "company_or_agency": company_or_agency,
+                    "is_active": True,
+                }
+            ).execute()
+        except Exception:
+            try:
+                admin_client.admin.delete_user(str(response.user.id))
+            except Exception:
+                pass
+            raise to_auth_http_exception(db_exc) from db_exc
 
-    return login_user(email, password)
+    # Return pending message — no access token issued
+    return {
+        "message": "Registration successful! Your account is awaiting admin approval. You will be able to log in once an admin reviews your request.",
+        "email": email,
+        "status": "pending_approval",
+    }
 
 
 
@@ -249,6 +337,23 @@ def _resolve_current_user(token: str) -> AuthUserOut:
     profile = _get_app_user_profile(get_db_client(), auth_user)
     if not profile.get("is_active", True):
         raise HTTPException(status_code=403, detail="This user account has been disabled.")
+
+    role = profile.get("role", ROLE_VIEWER).lower()
+    if role not in (ROLE_ADMIN,):
+        meta = getattr(auth_user, "user_metadata", {}) or {}
+        is_rejected = profile.get("is_rejected") if profile.get("is_rejected") is not None else meta.get("is_rejected", False)
+        if is_rejected:
+            reason = profile.get("rejection_reason") or meta.get("rejection_reason") or "Your account registration was rejected."
+            raise HTTPException(
+                status_code=403,
+                detail=f"ACCOUNT_REJECTED: {reason}",
+            )
+        is_approved = profile.get("is_approved") if profile.get("is_approved") is not None else meta.get("is_approved", False)
+        if not is_approved:
+            raise HTTPException(
+                status_code=403,
+                detail="ACCOUNT_PENDING: Your account is awaiting admin approval.",
+            )
 
     return _serialize_auth_user(auth_user, profile)
 

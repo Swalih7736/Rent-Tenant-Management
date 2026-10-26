@@ -1,9 +1,10 @@
 /* eslint-disable react-refresh/only-export-components */
 /**
- * Lightweight toast notification system.
+ * Lightweight luxury toast notification system.
  * Usage: import { ToastProvider, useToast } from './Toast';
  */
 import { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
+import { AlertCircle, CheckCircle2, HelpCircle, Info } from 'lucide-react';
 
 const ToastContext = createContext(null);
 
@@ -82,35 +83,35 @@ export function ToastProvider({ children }) {
             <div className="fixed bottom-6 right-6 z-[100] flex max-w-sm flex-col gap-3 pointer-events-none">
                 {toasts.map((toast) => {
                     const styleClass = toast.type === 'error'
-                        ? 'bg-[var(--color-danger)]/15 border-[var(--color-danger)]/30 text-[var(--color-danger)]'
+                        ? 'bg-[#1a0f14]/95 border-rose-500/40 text-rose-300 shadow-rose-950/50'
                         : toast.type === 'success'
-                            ? 'bg-[var(--color-success)]/15 border-[var(--color-success)]/30 text-[var(--color-success)]'
+                            ? 'bg-[#0e1c18]/95 border-emerald-500/40 text-emerald-300 shadow-emerald-950/50'
                             : toast.type === 'confirm'
-                                ? 'bg-[var(--color-warning)]/12 border-[var(--color-warning)]/30 text-[var(--color-text)]'
-                                : 'bg-[var(--color-primary)]/15 border-[var(--color-primary)]/30 text-[var(--color-primary-light)]';
+                                ? 'bg-[#1c160e]/95 border-amber-500/40 text-amber-200 shadow-amber-950/50'
+                                : 'bg-[#121824]/95 border-amber-500/30 text-amber-300 shadow-black/60';
 
-                    const icon = toast.type === 'error'
-                        ? '⚠'
+                    const IconComp = toast.type === 'error'
+                        ? AlertCircle
                         : toast.type === 'success'
-                            ? '✓'
+                            ? CheckCircle2
                             : toast.type === 'confirm'
-                                ? '?'
-                                : 'ℹ';
+                                ? HelpCircle
+                                : Info;
 
                     return (
                         <div
                             key={toast.id}
-                            className={`pointer-events-auto max-w-sm rounded-2xl border px-4 py-3 shadow-xl backdrop-blur-md animate-fade-in-up ${styleClass}`}
+                            className={`pointer-events-auto max-w-sm rounded-2xl border px-4 py-3.5 shadow-2xl backdrop-blur-xl animate-fade-in-up transition-all ${styleClass}`}
                         >
                             <div className="flex items-start gap-3">
-                                <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-black/15 text-sm font-semibold">
-                                    {icon}
+                                <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-white/10 text-current">
+                                    <IconComp className="w-4 h-4" />
                                 </div>
                                 <div className="min-w-0 flex-1">
                                     {toast.title && (
-                                        <p className="mb-1 text-sm font-semibold text-[var(--color-text)]">{toast.title}</p>
+                                        <p className="mb-0.5 text-xs font-bold text-white tracking-tight">{toast.title}</p>
                                     )}
-                                    <p className={`text-sm leading-6 ${toast.type === 'confirm' ? 'text-[var(--color-text)]' : ''}`}>
+                                    <p className="text-xs leading-5 text-slate-200">
                                         {toast.message}
                                     </p>
 
@@ -122,7 +123,7 @@ export function ToastProvider({ children }) {
                                                     toast.onCancel?.();
                                                     removeToast(toast.id);
                                                 }}
-                                                className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text)]"
+                                                className="rounded-xl border border-white/15 px-3 py-1.5 text-[11px] font-semibold text-[var(--color-text-muted)] hover:text-white transition-colors cursor-pointer"
                                             >
                                                 {toast.cancelLabel}
                                             </button>
@@ -132,7 +133,7 @@ export function ToastProvider({ children }) {
                                                     toast.onConfirm?.();
                                                     removeToast(toast.id);
                                                 }}
-                                                className="rounded-lg bg-[var(--color-warning)] px-3 py-1.5 text-xs font-semibold text-[#1f2937] transition-transform hover:-translate-y-0.5"
+                                                className="rounded-xl gold-glow-btn px-3 py-1.5 text-[11px] font-bold cursor-pointer"
                                             >
                                                 {toast.confirmLabel}
                                             </button>
@@ -141,7 +142,7 @@ export function ToastProvider({ children }) {
                                         <button
                                             type="button"
                                             onClick={() => removeToast(toast.id)}
-                                            className="mt-2 text-xs font-semibold text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text)]"
+                                            className="mt-1 text-[10px] font-semibold text-[var(--color-text-muted)] hover:text-amber-300 transition-colors cursor-pointer"
                                         >
                                             Dismiss
                                         </button>

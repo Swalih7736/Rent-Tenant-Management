@@ -124,38 +124,46 @@ export default function RentalRequestsPage() {
     };
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 animate-fade-in-up">
             {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-[var(--color-border)] pb-5">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-[var(--color-border)]/60 pb-5">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight text-white">Rental Applications & Verification</h1>
+                    <h1 className="text-3xl font-extrabold tracking-tight text-white">
+                        Rental Applications & <span className="gold-gradient-text">Verification</span>
+                    </h1>
                     <p className="text-sm text-[var(--color-text-muted)] mt-1">
-                        Review incoming tenant applications, verify identity documents, and approve leases.
+                        Review prospective tenant submissions, inspect verification credentials, and approve leases.
                     </p>
                 </div>
                 <button
                     onClick={loadRequests}
-                    className="px-4 py-2 rounded-xl bg-[var(--color-surface-light)] hover:bg-[var(--color-surface-light)]/80 text-white text-xs font-semibold transition-all self-start sm:self-auto"
+                    className="px-4 py-2.5 rounded-xl glass-card text-[var(--color-primary)] hover:border-[var(--color-primary)] text-xs font-bold transition-all self-start sm:self-auto flex items-center gap-2 shadow-sm"
                 >
-                    🔄 Refresh
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Refresh
                 </button>
             </div>
 
             {/* Filter Tabs */}
-            <div className="flex flex-wrap gap-2 border-b border-[var(--color-border)] pb-3">
-                {['ALL', 'PENDING', 'APPROVED', 'REJECTED'].map((tab) => (
-                    <button
-                        key={tab}
-                        onClick={() => setActiveFilter(tab)}
-                        className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                            activeFilter === tab
-                                ? 'bg-[var(--color-primary)] text-white shadow-sm'
-                                : 'bg-[var(--color-surface-dark)] text-[var(--color-text-muted)] hover:text-white'
-                        }`}
-                    >
-                        {tab === 'ALL' ? `All Requests (${applications.length})` : tab}
-                    </button>
-                ))}
+            <div className="flex flex-wrap gap-2.5">
+                {['ALL', 'PENDING', 'APPROVED', 'REJECTED'].map((tab) => {
+                    const isActive = activeFilter === tab;
+                    return (
+                        <button
+                            key={tab}
+                            onClick={() => setActiveFilter(tab)}
+                            className={`px-5 py-2.5 rounded-xl text-xs font-bold tracking-wide uppercase transition-all duration-200 cursor-pointer ${
+                                isActive
+                                    ? 'bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-dark)] text-slate-950 shadow-lg shadow-[var(--color-primary)]/20'
+                                    : 'bg-[var(--color-surface)]/80 hover:bg-[var(--color-surface)] text-[var(--color-text-muted)] hover:text-white border border-[var(--color-border)]'
+                            }`}
+                        >
+                            {tab === 'ALL' ? `All Applications (${applications.length})` : tab}
+                        </button>
+                    );
+                })}
             </div>
 
             {/* Requests List */}
@@ -164,13 +172,13 @@ export default function RentalRequestsPage() {
                     <div className="w-8 h-8 border-2 border-[var(--color-primary)] border-t-transparent rounded-full animate-spin" />
                 </div>
             ) : filtered.length === 0 ? (
-                <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-12 text-center">
+                <div className="glass-card rounded-2xl p-12 text-center">
                     <div className="text-4xl mb-3">📬</div>
-                    <h3 className="text-base font-bold text-white">No Rental Applications Found</h3>
-                    <p className="text-xs text-[var(--color-text-muted)] mt-1">
+                    <h3 className="text-lg font-bold text-white">No Rental Applications Found</h3>
+                    <p className="text-xs text-[var(--color-text-muted)] mt-1 max-w-sm mx-auto">
                         {activeFilter === 'ALL'
                             ? 'You currently have no incoming rental applications for your properties.'
-                            : `No rental applications with status "${activeFilter}".`}
+                            : `No rental applications currently found under status "${activeFilter}".`}
                     </p>
                 </div>
             ) : (
@@ -178,49 +186,54 @@ export default function RentalRequestsPage() {
                     {filtered.map((app) => (
                         <div
                             key={app.id}
-                            className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 hover:border-[var(--color-primary)]/50 transition-all flex flex-col lg:flex-row lg:items-center justify-between gap-5"
+                            className="glass-card rounded-2xl p-6 transition-all duration-300 hover:border-[var(--color-primary)]/40 hover:shadow-xl hover:shadow-[var(--color-primary)]/5 flex flex-col lg:flex-row lg:items-center justify-between gap-6"
                         >
-                            <div className="space-y-2 flex-1">
+                            <div className="space-y-3 flex-1">
                                 <div className="flex flex-wrap items-center gap-3">
-                                    <h3 className="text-base font-bold text-white">{app.full_name}</h3>
-                                    {getStatusBadge(app.status)}
-                                    {getIdBadge(app.id_verification_status)}
+                                    <div className="w-10 h-10 rounded-xl bg-[var(--color-primary)]/15 border border-[var(--color-primary)]/30 flex items-center justify-center text-sm font-bold text-[var(--color-primary)]">
+                                        {app.full_name?.charAt(0) || 'U'}
+                                    </div>
+                                    <div>
+                                        <h3 className="text-lg font-bold text-white leading-tight">{app.full_name}</h3>
+                                        <p className="text-xs text-[var(--color-text-muted)] mt-0.5">Applied on {new Date(app.created_at).toLocaleDateString()}</p>
+                                    </div>
+                                    <div className="ml-auto lg:ml-0 flex items-center gap-2">
+                                        {getStatusBadge(app.status)}
+                                        {getIdBadge(app.id_verification_status)}
+                                    </div>
                                 </div>
 
-                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-y-1 gap-x-4 text-xs text-[var(--color-text-muted)]">
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs bg-[var(--color-surface-dark)]/70 border border-[var(--color-border)]/60 rounded-xl p-3.5">
                                     <div>
-                                        <span className="font-semibold text-slate-300">Property:</span> {app.property?.address || app.listing?.title || 'Target Property'}
+                                        <span className="text-[var(--color-text-muted)] block text-[10px] uppercase tracking-wider font-semibold">Target Property</span>
+                                        <span className="font-semibold text-white truncate block">{app.property?.address || app.listing?.title || 'Target Property'}</span>
                                     </div>
                                     <div>
-                                        <span className="font-semibold text-slate-300">Preferred Unit:</span> {app.unit_number || 'Unit-1'}
+                                        <span className="text-[var(--color-text-muted)] block text-[10px] uppercase tracking-wider font-semibold">Unit & Rent</span>
+                                        <span className="font-semibold text-white">
+                                            {app.unit_number || 'Unit-1'} • <strong className="text-[var(--color-primary)]">₹{Number(app.rent_amount).toLocaleString()}</strong>/mo
+                                        </span>
                                     </div>
                                     <div>
-                                        <span className="font-semibold text-slate-300">Monthly Rent:</span> ₹{Number(app.rent_amount).toLocaleString()}
-                                    </div>
-                                    <div>
-                                        <span className="font-semibold text-slate-300">Email:</span> {app.email}
-                                    </div>
-                                    <div>
-                                        <span className="font-semibold text-slate-300">Phone:</span> {app.phone}
-                                    </div>
-                                    <div>
-                                        <span className="font-semibold text-slate-300">Applied on:</span> {new Date(app.created_at).toLocaleDateString()}
+                                        <span className="text-[var(--color-text-muted)] block text-[10px] uppercase tracking-wider font-semibold">Contact</span>
+                                        <span className="font-medium text-slate-300 truncate block">{app.email} • {app.phone}</span>
                                     </div>
                                 </div>
 
                                 {app.rejection_reason && (
-                                    <div className="rounded-lg bg-rose-500/10 border border-rose-500/20 p-2 text-xs text-rose-300">
-                                        <strong>Rejection Reason:</strong> {app.rejection_reason}
+                                    <div className="rounded-xl bg-rose-500/10 border border-rose-500/20 p-3 text-xs text-rose-300 flex items-start gap-2">
+                                        <span className="text-rose-400 font-bold">Rejection Note:</span>
+                                        <span>{app.rejection_reason}</span>
                                     </div>
                                 )}
                             </div>
 
-                            <div className="flex items-center gap-3 self-end lg:self-center">
+                            <div className="flex items-center gap-3 self-end lg:self-center shrink-0">
                                 <button
                                     onClick={() => handleOpenDetail(app)}
-                                    className="px-4 py-2.5 rounded-xl bg-[var(--color-primary)]/20 hover:bg-[var(--color-primary)] text-[var(--color-primary-light)] hover:text-white text-xs font-bold transition-all"
+                                    className="px-5 py-2.5 rounded-xl gold-glow-btn text-xs font-bold"
                                 >
-                                    View Details & Verify ID
+                                    Inspect & Verify →
                                 </button>
                             </div>
                         </div>

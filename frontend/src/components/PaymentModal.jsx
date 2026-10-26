@@ -10,7 +10,7 @@ import api from '../api'
  *   onClose   — called when modal is dismissed
  *   onSuccess — called after successful payment, receives the Razorpay response
  */
-export default function PaymentModal({ tenant, amount, onClose, onSuccess }) {
+export default function PaymentModal({ tenant, property, amount, monthCovered, onClose, onSuccess }) {
   const [step, setStep]           = useState('confirm')  // confirm | paying | success | error
   const [message, setMessage]     = useState('')
   const [paymentId, setPaymentId] = useState('')
@@ -64,11 +64,12 @@ export default function PaymentModal({ tenant, amount, onClose, onSuccess }) {
           email:   tenant.email  || '',
           contact: tenant.phone  || '',
         },
-        theme: { color: '#4f46e5' },   // indigo
+        theme: { color: '#f59e0b' },   // amber/gold
 
         // ── On payment SUCCESS ──────────────────────────────────────
         handler: async (response) => {
           try {
+            const targetMonth = monthCovered || new Date().toISOString().slice(0, 7);
             // 3. Verify signature on backend & log payment in DB
             await api.post('/payments/webhook', {
               order_id:            order.id,
@@ -76,6 +77,8 @@ export default function PaymentModal({ tenant, amount, onClose, onSuccess }) {
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_signature:  response.razorpay_signature,
               status:              'success',
+              tenant_id:           tenant.id,
+              month_covered:       targetMonth,
             })
             setPaymentId(response.razorpay_payment_id)
             setStep('success')
@@ -115,16 +118,18 @@ export default function PaymentModal({ tenant, amount, onClose, onSuccess }) {
 
   /* ── Render ─────────────────────────────────────────────────── */
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
-      <div className="bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] w-full max-w-md shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md px-4">
+      <div className="bg-[var(--color-surface)]/95 rounded-3xl border border-amber-500/25 w-full max-w-md shadow-2xl shadow-black/80 overflow-hidden animate-fade-in-up">
+        {/* Top gold line */}
+        <div className="h-1 w-full bg-gradient-to-r from-transparent via-amber-400 to-transparent" />
 
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--color-border)]">
-          <h2 className="font-semibold text-[var(--color-text)] flex items-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--color-primary)]"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--color-border)] bg-[var(--color-surface-dark)]/40">
+          <h2 className="font-bold text-white text-sm flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-400"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
             Online Rent Checkout
           </h2>
-          <button onClick={onClose} className="text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors">
+          <button onClick={onClose} className="text-[var(--color-text-muted)] hover:text-white transition-colors cursor-pointer">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
           </button>
         </div>
@@ -134,24 +139,25 @@ export default function PaymentModal({ tenant, amount, onClose, onSuccess }) {
           {/* ── Confirm step ─────────────────────────────────────── */}
           {step === 'confirm' && (
             <>
-              <div className="bg-[var(--color-surface-dark)] rounded-xl p-4 space-y-2 border border-[var(--color-border)]">
+              <div className="bg-[var(--color-surface-dark)] rounded-2xl p-4 space-y-2 border border-[var(--color-border)]">
                 <Row label="Tenant"       value={tenant.name} />
-                <Row label="Billing Month" value={new Date().toLocaleString('default', { month: 'long', year: 'numeric' })} />
+                <Row label="Property"     value={property?.address || tenant.property_address || 'Rental Unit'} />
+                <Row label="Billing Month" value={monthCovered ? new Date(`${monthCovered}-01`).toLocaleString('default', { month: 'long', year: 'numeric' }) : new Date().toLocaleString('default', { month: 'long', year: 'numeric' })} />
                 <div className="border-t border-[var(--color-border)] pt-2 flex items-center justify-between">
-                  <span className="text-sm text-[var(--color-text-muted)]">Total Payable</span>
-                  <span className="text-xl font-bold text-[var(--color-text)]">
+                  <span className="text-xs text-[var(--color-text-muted)] font-semibold">Total Payable</span>
+                  <span className="text-xl font-black text-amber-400">
                     ₹{Number(amount).toLocaleString('en-IN')}
                   </span>
                 </div>
               </div>
 
               {/* ── Test Mode Helper ── */}
-              <div className="rounded-xl bg-amber-950/40 border border-amber-600/40 p-3.5 space-y-2.5">
+              <div className="rounded-2xl bg-amber-500/10 border border-amber-500/30 p-3.5 space-y-2.5">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-amber-300 uppercase tracking-wide">
                     ⚡ Razorpay Test Mode Credentials
                   </span>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-800/60 text-amber-200">Test Only</span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30">Test Only</span>
                 </div>
 
                 <p className="text-[11px] text-[var(--color-text-muted)] leading-relaxed">
@@ -159,7 +165,7 @@ export default function PaymentModal({ tenant, amount, onClose, onSuccess }) {
                 </p>
 
                 {/* Domestic Visa Test Card */}
-                <div className="bg-[var(--color-surface-dark)] rounded-lg p-2.5 border border-[var(--color-border)] flex items-center justify-between text-xs">
+                <div className="bg-[var(--color-surface-dark)] rounded-xl p-2.5 border border-[var(--color-border)] flex items-center justify-between text-xs">
                   <div>
                     <span className="text-[var(--color-text-muted)] block text-[10px]">DOMESTIC VISA TEST CARD</span>
                     <span className="font-mono text-emerald-400 font-semibold tracking-wider">4718 6091 0820 4366</span>
@@ -168,7 +174,7 @@ export default function PaymentModal({ tenant, amount, onClose, onSuccess }) {
                   <button
                     type="button"
                     onClick={() => copyToClipboard('4718609108204366', 'card')}
-                    className="p-1.5 rounded bg-[var(--color-surface)] hover:bg-[var(--color-surface-light)] text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors flex items-center gap-1 text-[11px]"
+                    className="p-1.5 rounded-lg bg-[var(--color-surface)] hover:bg-[var(--color-surface-light)] text-amber-400 transition-colors flex items-center gap-1 text-[11px] font-bold cursor-pointer"
                     title="Copy Card Number"
                   >
                     {copiedCard ? '✓ Copied' : '⎘ Copy'}
@@ -176,16 +182,16 @@ export default function PaymentModal({ tenant, amount, onClose, onSuccess }) {
                 </div>
 
                 {/* Domestic MasterCard Test Card */}
-                <div className="bg-[var(--color-surface-dark)] rounded-lg p-2.5 border border-[var(--color-border)] flex items-center justify-between text-xs">
+                <div className="bg-[var(--color-surface-dark)] rounded-xl p-2.5 border border-[var(--color-border)] flex items-center justify-between text-xs">
                   <div>
                     <span className="text-[var(--color-text-muted)] block text-[10px]">DOMESTIC MASTERCARD TEST CARD</span>
-                    <span className="font-mono text-cyan-300 font-semibold tracking-wider">5104 0600 0000 0008</span>
+                    <span className="font-mono text-amber-300 font-semibold tracking-wider">5104 0600 0000 0008</span>
                     <span className="text-[var(--color-text-muted)] text-[10px] ml-2">(Exp: 12/28 · CVV: 123)</span>
                   </div>
                   <button
                     type="button"
                     onClick={() => copyToClipboard('5104060000000008', 'card2')}
-                    className="p-1.5 rounded bg-[var(--color-surface)] hover:bg-[var(--color-surface-light)] text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors flex items-center gap-1 text-[11px]"
+                    className="p-1.5 rounded-lg bg-[var(--color-surface)] hover:bg-[var(--color-surface-light)] text-amber-400 transition-colors flex items-center gap-1 text-[11px] font-bold cursor-pointer"
                     title="Copy Card Number"
                   >
                     ⎘ Copy
@@ -193,15 +199,15 @@ export default function PaymentModal({ tenant, amount, onClose, onSuccess }) {
                 </div>
 
                 {/* Test UPI */}
-                <div className="bg-[var(--color-surface-dark)] rounded-lg p-2.5 border border-[var(--color-border)] flex items-center justify-between text-xs">
+                <div className="bg-[var(--color-surface-dark)] rounded-xl p-2.5 border border-[var(--color-border)] flex items-center justify-between text-xs">
                   <div>
                     <span className="text-[var(--color-text-muted)] block text-[10px]">TEST UPI ID (INSTANT SUCCESS)</span>
-                    <span className="font-mono text-indigo-300 font-semibold">success@razorpay</span>
+                    <span className="font-mono text-amber-300 font-semibold">success@razorpay</span>
                   </div>
                   <button
                     type="button"
                     onClick={() => copyToClipboard('success@razorpay', 'upi')}
-                    className="p-1.5 rounded bg-[var(--color-surface)] hover:bg-[var(--color-surface-light)] text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors flex items-center gap-1 text-[11px]"
+                    className="p-1.5 rounded-lg bg-[var(--color-surface)] hover:bg-[var(--color-surface-light)] text-amber-400 transition-colors flex items-center gap-1 text-[11px] font-bold cursor-pointer"
                     title="Copy UPI ID"
                   >
                     {copiedUpi ? '✓ Copied' : '⎘ Copy'}
@@ -209,7 +215,7 @@ export default function PaymentModal({ tenant, amount, onClose, onSuccess }) {
                 </div>
 
                 <p className="text-[10px] text-[var(--color-text-muted)]">
-                  💡 You can also choose <strong className="text-amber-300">Netbanking</strong> (pick any bank) or <strong className="text-indigo-300">UPI</strong>, then click the green <strong className="text-emerald-400">"Success"</strong> button.
+                  💡 You can also choose <strong className="text-amber-300">Netbanking</strong> (pick any bank) or <strong className="text-amber-300">UPI</strong>, then click the green <strong className="text-emerald-400">"Success"</strong> button.
                 </p>
               </div>
 
@@ -217,14 +223,14 @@ export default function PaymentModal({ tenant, amount, onClose, onSuccess }) {
                 <button
                   type="button"
                   onClick={onClose}
-                  className="flex-1 py-2.5 rounded-xl border border-[var(--color-border)] text-[var(--color-text-muted)] text-sm hover:bg-[var(--color-surface-light)] transition-colors"
+                  className="flex-1 py-2.5 rounded-xl border border-[var(--color-border)] text-[var(--color-text-muted)] text-xs font-bold hover:bg-[var(--color-surface-light)] transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="button"
                   onClick={handlePay}
-                  className="flex-1 py-2.5 rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white font-semibold text-sm transition-colors shadow-lg flex items-center justify-center gap-2"
+                  className="flex-1 py-2.5 rounded-xl gold-glow-btn text-xs font-bold transition-all shadow-lg flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
                   Proceed to Pay
@@ -236,10 +242,10 @@ export default function PaymentModal({ tenant, amount, onClose, onSuccess }) {
           {/* ── Paying step ──────────────────────────────────────── */}
           {step === 'paying' && (
             <div className="text-center py-8 space-y-3">
-              <div className="w-9 h-9 border-2 border-[var(--color-primary)] border-t-transparent rounded-full animate-spin mx-auto" />
-              <p className="text-[var(--color-text)] font-medium">Opening Razorpay Gateway…</p>
+              <div className="w-9 h-9 border-2 border-amber-400 border-t-transparent rounded-full animate-spin mx-auto" />
+              <p className="text-white font-bold text-sm">Opening Razorpay Gateway…</p>
               <p className="text-[var(--color-text-muted)] text-xs max-w-xs mx-auto">
-                Complete payment in the Razorpay popup using test card <code className="text-emerald-400">4718 6091 0820 4366</code> or UPI <code className="text-indigo-400">success@razorpay</code>.
+                Complete payment in the Razorpay popup using test card <code className="text-emerald-400">4718 6091 0820 4366</code> or UPI <code className="text-amber-300">success@razorpay</code>.
               </p>
             </div>
           )}
@@ -249,12 +255,12 @@ export default function PaymentModal({ tenant, amount, onClose, onSuccess }) {
             <div className="text-center py-8 space-y-4">
               <div className="text-5xl">✅</div>
               <div>
-                <p className="text-[var(--color-text)] font-semibold text-lg">Payment Successful! 🎉</p>
+                <p className="text-white font-bold text-lg">Payment Successful! 🎉</p>
                 <p className="text-[var(--color-text-muted)] text-sm mt-1">
                   ₹{Number(amount).toLocaleString('en-IN')} received for {tenant.name}
                 </p>
                 {paymentId && (
-                  <p className="text-xs text-[var(--color-text-muted)] mt-2 font-mono bg-[var(--color-surface-dark)] py-1 px-2 rounded inline-block">
+                  <p className="text-xs text-amber-300 mt-2 font-mono bg-[var(--color-surface-dark)] py-1 px-3 rounded-lg border border-[var(--color-border)] inline-block">
                     Transaction ID: {paymentId}
                   </p>
                 )}
@@ -262,7 +268,7 @@ export default function PaymentModal({ tenant, amount, onClose, onSuccess }) {
               <button
                 type="button"
                 onClick={onClose}
-                className="px-6 py-2.5 rounded-xl bg-[var(--color-success)] hover:opacity-90 text-white font-semibold text-sm transition-colors"
+                className="px-6 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs transition-colors cursor-pointer"
               >
                 Done
               </button>
@@ -274,24 +280,24 @@ export default function PaymentModal({ tenant, amount, onClose, onSuccess }) {
             <div className="text-center py-8 space-y-4">
               <div className="text-5xl">❌</div>
               <div>
-                <p className="text-[var(--color-text)] font-semibold">Payment Failed</p>
+                <p className="text-rose-400 font-bold">Payment Failed</p>
                 <p className="text-[var(--color-text-muted)] text-xs mt-1.5 px-4">{message}</p>
                 <p className="text-[var(--color-text-muted)] text-[11px] mt-2">
-                  Remember: real cards fail in test mode. Use card <strong className="text-emerald-400">4718 6091 0820 4366</strong> or UPI <strong className="text-indigo-400">success@razorpay</strong>.
+                  Remember: real cards fail in test mode. Use card <strong className="text-emerald-400">4718 6091 0820 4366</strong> or UPI <strong className="text-amber-300">success@razorpay</strong>.
                 </p>
               </div>
               <div className="flex gap-3 justify-center pt-2">
                 <button
                   type="button"
                   onClick={() => setStep('confirm')}
-                  className="px-5 py-2 rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white text-xs font-semibold transition-colors"
+                  className="px-5 py-2 rounded-xl gold-glow-btn text-xs font-bold transition-colors cursor-pointer"
                 >
                   Try Again with Test Card
                 </button>
                 <button
                   type="button"
                   onClick={onClose}
-                  className="px-5 py-2 rounded-xl border border-[var(--color-border)] text-[var(--color-text-muted)] text-xs hover:bg-[var(--color-surface-light)] transition-colors"
+                  className="px-5 py-2 rounded-xl border border-[var(--color-border)] text-[var(--color-text-muted)] text-xs font-semibold hover:bg-[var(--color-surface-light)] transition-colors cursor-pointer"
                 >
                   Close
                 </button>
@@ -308,9 +314,9 @@ export default function PaymentModal({ tenant, amount, onClose, onSuccess }) {
 /** Small helper row for the confirmation summary */
 function Row({ label, value }) {
   return (
-    <div className="flex items-center justify-between text-sm">
-      <span className="text-[var(--color-text-muted)]">{label}</span>
-      <span className="text-[var(--color-text)] font-medium">{value}</span>
+    <div className="flex items-center justify-between text-xs">
+      <span className="text-[var(--color-text-muted)] font-semibold">{label}</span>
+      <span className="text-white font-bold">{value}</span>
     </div>
   )
 }

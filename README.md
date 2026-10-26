@@ -30,9 +30,10 @@ Rent-Management/
 ## 🚀 Quick Start & Development Setup
 
 ### 1. Prerequisites
-*   [Python 3.10+](https://www.python.org/)
-*   [Node.js (v18+)](https://nodejs.org/)
-*   A [Supabase](https://supabase.com/) account/project (for Database & Auth)
+
+- [Python 3.10+](https://www.python.org/)
+- [Node.js (v18+)](https://nodejs.org/)
+- A [Supabase](https://supabase.com/) account/project (for Database & Auth)
 
 ---
 
@@ -43,6 +44,7 @@ Rent-Management/
    cd backend
    ```
 2. Create and activate a virtual environment:
+
    ```bash
    # Windows (PowerShell/CMD)
    python -m venv venv
@@ -52,6 +54,7 @@ Rent-Management/
    python3 -m venv venv
    source venv/bin/activate
    ```
+
 3. Install dependencies:
    ```bash
    pip install -r requirements.txt
@@ -92,7 +95,9 @@ Rent-Management/
 ---
 
 ## 🔒 Security & Roles
+
 The application uses Role-Based Access Control (RBAC):
+
 - **Admin**: Full read/write/delete privileges across all models, and user registration controls.
 - **Manager**: Day-to-day data entry (properties, tenants, payments, meter readings).
 - **Viewer**: Read-only operations for dashboards, records, and reports.

@@ -198,7 +198,7 @@ export default function DashboardPage() {
             return <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-rose-500/15 text-rose-400 border border-rose-500/20">Rejected</span>;
         }
         if (s === 'UNDER REVIEW') {
-            return <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-sky-500/15 text-sky-400 border border-sky-500/20">Under Review</span>;
+            return <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-500/15 text-amber-300 border border-amber-500/25">Under Review</span>;
         }
         return <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-500/15 text-amber-400 border border-amber-500/20">Pending Review</span>;
     };
@@ -206,7 +206,7 @@ export default function DashboardPage() {
     if (loading) {
         return (
             <div className="flex items-center justify-center h-64">
-                <div className="w-8 h-8 border-2 border-[var(--color-primary)] border-t-transparent rounded-full animate-spin" />
+                <div className="w-9 h-9 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
             </div>
         );
     }
@@ -220,7 +220,7 @@ export default function DashboardPage() {
                 {/* Header */}
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-[var(--color-border)] pb-5">
                     <div>
-                        <h1 className="text-2xl font-bold tracking-tight text-white">
+                        <h1 className="text-2xl font-extrabold tracking-tight text-white gold-gradient-text">
                             Welcome back, {user?.full_name || user?.email?.split('@')[0]}!
                         </h1>
                         <p className="text-[var(--color-text-muted)] text-sm mt-1">
@@ -229,7 +229,7 @@ export default function DashboardPage() {
                     </div>
                     <button
                         onClick={() => navigate('/marketplace')}
-                        className="px-5 py-2.5 rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white text-xs font-bold transition-all shadow-md self-start sm:self-auto"
+                        className="gold-glow-btn px-5 py-2.5 rounded-xl text-xs font-bold cursor-pointer self-start sm:self-auto"
                     >
                         🛍️ Browse Marketplace
                     </button>
@@ -544,7 +544,7 @@ export default function DashboardPage() {
         <div className="space-y-8 animate-fade-in-up">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight">Owner &amp; Property Dashboard</h1>
+                    <h1 className="text-2xl font-extrabold tracking-tight text-white gold-gradient-text">Owner &amp; Property Dashboard</h1>
                     <p className="text-[var(--color-text-muted)] text-sm mt-1">
                         Overview of your properties, tenant leases, revenue, and incoming applications
                     </p>
@@ -552,7 +552,7 @@ export default function DashboardPage() {
                 {stats.pendingRequestsCount > 0 && (
                     <button
                         onClick={() => navigate('/rental-requests')}
-                        className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-black font-bold text-xs transition-all shadow-md flex items-center gap-2 animate-bounce"
+                        className="gold-glow-btn px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer animate-pulse"
                     >
                         <span>📬</span>
                         <span>{stats.pendingRequestsCount} Pending Rental Request{stats.pendingRequestsCount === 1 ? '' : 's'}</span>
@@ -562,7 +562,7 @@ export default function DashboardPage() {
 
             {/* Quick Banner for Rental Requests */}
             {stats.pendingRequestsCount > 0 && (
-                <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg shadow-amber-500/5 backdrop-blur-md">
                     <div className="flex items-center gap-3">
                         <span className="text-2xl">📝</span>
                         <div>
@@ -574,7 +574,7 @@ export default function DashboardPage() {
                     </div>
                     <button
                         onClick={() => navigate('/rental-requests')}
-                        className="px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-black font-bold text-xs transition-all shadow-sm shrink-0"
+                        className="gold-glow-btn px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer"
                     >
                         Review Applications →
                     </button>

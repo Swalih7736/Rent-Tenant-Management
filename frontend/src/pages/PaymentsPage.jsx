@@ -16,7 +16,10 @@ export default function PaymentsPage() {
     const [properties, setProperties] = useState([]);
     const [loading, setLoading] = useState(true);
     const [modalOpen, setModalOpen] = useState(false);
-    const [onlinePayModalOpen, setOnlinePayModalOpen] = useState(false);
+    const [payTarget, setPayTarget] = useState(null);
+    const [paySelectorOpen, setPaySelectorOpen] = useState(false);
+    const [selectedTenantId, setSelectedTenantId] = useState('');
+    const [selectedMonth, setSelectedMonth] = useState('');
     const [form, setForm] = useState({ tenant_id: '', amount_paid: '', payment_date: new Date().toISOString().slice(0, 10), month_covered: currentMonth(), payment_type: 'rent', note: '' });
     const [filterMonth, setFilterMonth] = useState('');
     const { user, canManagePayments } = useAuth();
@@ -71,14 +74,12 @@ export default function PaymentsPage() {
     );
 
     // Build rent tracking grid: tenant × month → paid/pending
-    // show the months only after the tenant start month of the current year
     const months = useMemo(() => {
         const now = new Date();
         const currentYear = now.getFullYear();
         const currentMonthNum = now.getMonth() + 1;
 
         if (isNormalUser && activeTenants.length > 0) {
-            // Find tenant's lease start
             let startMonthNum = currentMonthNum;
             const tLeaseStart = activeTenants[0].lease_start;
             if (tLeaseStart) {
@@ -101,7 +102,6 @@ export default function PaymentsPage() {
             return result;
         }
 
-        // For owner/admin: rolling 6 months of current view
         const result = [];
         for (let i = 5; i >= 0; i--) {
             const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
@@ -111,106 +111,104 @@ export default function PaymentsPage() {
     }, [isNormalUser, activeTenants]);
 
     const paymentTotals = useMemo(() => {
-        const totals = {};
-        visiblePayments.forEach((payment) => {
+        const map = {};
+        payments.forEach((payment) => {
             const key = `${payment.tenant_id}__${payment.month_covered}`;
-            totals[key] = (totals[key] || 0) + Number(payment.amount_paid || 0);
+            map[key] = (map[key] || 0) + Number(payment.amount_paid || 0);
         });
-        return totals;
-    }, [visiblePayments]);
+        return map;
+    }, [payments]);
 
+    // Active lease currently selected in the pay selector
+    const currentSelectedTenant = useMemo(() => {
+        return activeTenants.find(t => t.id === selectedTenantId) || activeTenants[0] || null;
+    }, [activeTenants, selectedTenantId]);
 
-    const formatMonth = (m) => {
-        const [y, mo] = m.split('-');
-        const date = new Date(+y, +mo - 1);
-        return date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+    // Compute unpaid months in chronological order for the selected lease
+    const unpaidMonthsForSelectedTenant = useMemo(() => {
+        if (!currentSelectedTenant) return [];
+        const tStart = (currentSelectedTenant.lease_start || '').slice(0, 7);
+        return months.filter(m => {
+            if (tStart && m < tStart) return false;
+            const totalPaid = paymentTotals[`${currentSelectedTenant.id}__${m}`] || 0;
+            const rentDue = Number(propertyMap[currentSelectedTenant.property_id]?.rent_amount || 0);
+            return totalPaid < rentDue;
+        });
+    }, [currentSelectedTenant, months, paymentTotals, propertyMap]);
+
+    // Keep selectedMonth in sync with oldest unpaid month
+    useEffect(() => {
+        if (unpaidMonthsForSelectedTenant.length > 0) {
+            setSelectedMonth(unpaidMonthsForSelectedTenant[0]);
+        } else {
+            setSelectedMonth(months[months.length - 1] || '');
+        }
+    }, [unpaidMonthsForSelectedTenant, months]);
+
+    useEffect(() => {
+        if (!selectedTenantId && activeTenants.length > 0) {
+            setSelectedTenantId(activeTenants[0].id);
+        }
+    }, [activeTenants, selectedTenantId]);
+
+    const formatMonth = (str) => {
+        if (!str) return '—';
+        const [y, m] = str.split('-');
+        const date = new Date(+y, +m - 1);
+        return date.toLocaleString('default', { month: 'short', year: '2-digit' });
     };
 
-    const statementTotals = useMemo(() => {
-        const totalCollected = filteredPayments.reduce(
-            (sum, payment) => sum + Number(payment.amount_paid || 0),
-            0
-        );
-        const uniqueTenantIds = new Set(filteredPayments.map((payment) => payment.tenant_id));
-        return {
-            totalCollected,
-            paymentCount: filteredPayments.length,
-            tenantCount: uniqueTenantIds.size,
-        };
-    }, [filteredPayments]);
-
     const handleExportStatement = async () => {
-        const statementLabel = filterMonth ? formatMonth(filterMonth) : 'All Months';
         try {
+            const totalCollected = filteredPayments.reduce((acc, p) => acc + Number(p.amount_paid || 0), 0);
             await exportDetailsToPdf({
-                title: `Payment Statement - ${statementLabel}`,
-                subtitle: `${statementTotals.paymentCount} payment record${statementTotals.paymentCount === 1 ? '' : 's'} across ${statementTotals.tenantCount} tenant${statementTotals.tenantCount === 1 ? '' : 's'}`,
+                title: `Rent Payments & Collections Statement`,
+                subtitle: `Filter: ${filterMonth ? formatMonth(filterMonth) : 'All Months'} | Total Collected: Rs ${totalCollected.toLocaleString()}`,
                 sections: [
                     {
-                        title: 'Statement Summary',
+                        title: 'Summary',
                         fields: [
-                            { label: 'Period', value: statementLabel },
-                            { label: 'Total Collected', value: `Rs ${statementTotals.totalCollected.toLocaleString()}` },
-                            { label: 'Payments Included', value: statementTotals.paymentCount },
-                            { label: 'Tenants Covered', value: statementTotals.tenantCount },
-                        ],
-                    },
-                    {
-                        title: 'Payment Entries',
-                        fields: filteredPayments.map((payment) => {
-                            const tenant = tenantMap[payment.tenant_id];
-                            const property = propertyMap[tenant?.property_id];
-                            const parts = [
-                                `Amount: Rs ${Number(payment.amount_paid).toLocaleString()}`,
-                                `Type: ${formatPaymentType(payment.payment_type)}`,
-                                `Date: ${payment.payment_date}`,
-                                `Month: ${formatMonth(payment.month_covered)}`,
-                                `Property: ${property?.address || 'Unknown property'}`,
-                            ];
-                            if (payment.note) {
-                                parts.push(`Note: ${payment.note}`);
-                            }
-                            return {
-                                label: tenant?.name || payment.tenant_id,
-                                value: parts.join('\n'),
-                            };
-                        }),
-                    },
+                            { label: 'Total Transactions', value: filteredPayments.length },
+                            { label: 'Total Amount', value: `Rs ${totalCollected.toLocaleString()}` },
+                            { label: 'Export Date', value: new Date().toLocaleDateString() },
+                        ]
+                    }
                 ],
+                tables: [
+                    {
+                        title: 'Payment Transactions',
+                        columns: ['Tenant', 'Property', 'Amount', 'Type', 'Date', 'Month Covered'],
+                        rows: filteredPayments.map(p => [
+                            tenantMap[p.tenant_id]?.name || 'Unknown',
+                            propertyMap[tenantMap[p.tenant_id]?.property_id]?.address || '—',
+                            `Rs ${Number(p.amount_paid).toLocaleString()}`,
+                            formatPaymentType(p.payment_type),
+                            p.payment_date,
+                            formatMonth(p.month_covered)
+                        ])
+                    }
+                ]
             });
-            toast.success('Payment statement PDF exported.');
-        } catch (error) {
-            console.error(error);
-            toast.error('Failed to export payment statement PDF.');
+            toast.success('Payments Statement PDF downloaded.');
+        } catch (err) {
+            console.error(err);
+            toast.error('Failed to export payments statement.');
         }
     };
 
     const openNew = () => {
-        setForm(emptyForm);
+        setForm({ ...emptyForm, tenant_id: activeTenants[0]?.id || '' });
         setModalOpen(true);
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        const data = {
-            ...form,
-            amount_paid: Number(form.amount_paid),
-            payment_type: form.payment_type,
-            note: form.note?.trim() || null,
-        };
-        if (!Number.isFinite(data.amount_paid) || data.amount_paid <= 0) {
-            toast.error('Amount must be greater than 0.');
-            return;
-        }
-        const hasDuplicateMonth = payments.some(
-            (payment) => payment.tenant_id === data.tenant_id && payment.month_covered === data.month_covered
-        );
-        if (hasDuplicateMonth) {
-            toast.error('A payment for this tenant and month already exists. Open the existing record to update it.');
-            return;
-        }
         try {
-            await createPayment(data);
+            await createPayment({
+                ...form,
+                amount_paid: Number(form.amount_paid),
+                note: form.note || null,
+            });
             toast.success('Payment recorded.');
             setModalOpen(false);
             setForm(emptyForm);
@@ -226,29 +224,29 @@ export default function PaymentsPage() {
     if (loading) {
         return (
             <div className="flex items-center justify-center h-64">
-                <div className="w-8 h-8 border-2 border-[var(--color-primary)] border-t-transparent rounded-full animate-spin" />
+                <div className="w-9 h-9 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
             </div>
         );
     }
 
     return (
         <div className="space-y-8 animate-fade-in-up">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[var(--color-border)] pb-5">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight">Rent Tracking</h1>
-                    <p className="text-[var(--color-text-muted)] text-sm mt-1">Payment status across the last 6 months</p>
+                    <h1 className="text-2xl font-extrabold tracking-tight text-white gold-gradient-text">Rent Tracking &amp; Payments</h1>
+                    <p className="text-[var(--color-text-muted)] text-sm mt-1">Payment status across billing cycles</p>
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
                     <button
                         onClick={handleExportStatement}
-                        className="px-4 py-2 border border-white/10 bg-white/[0.04] hover:bg-white/[0.08] text-[var(--color-text)] text-sm font-medium rounded-lg transition-colors"
+                        className="px-4 py-2.5 border border-[var(--color-border)] bg-[var(--color-surface-light)]/50 hover:border-amber-400 hover:text-amber-400 text-white text-xs font-bold rounded-xl transition-all cursor-pointer"
                     >
                         Export Statement PDF
                     </button>
                     {isNormalUser && activeTenants.length > 0 && (
                         <button
-                            onClick={() => setOnlinePayModalOpen(true)}
-                            className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-cyan-500 hover:from-indigo-500 hover:to-cyan-400 text-white text-sm font-semibold rounded-lg shadow-md transition-all flex items-center gap-1.5"
+                            onClick={() => setPaySelectorOpen(true)}
+                            className="gold-glow-btn px-4 py-2.5 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
                         >
                             💳 Pay Rent Online (Razorpay)
                         </button>
@@ -256,7 +254,7 @@ export default function PaymentsPage() {
                     {canManagePayments && (
                         <button
                             onClick={openNew}
-                            className="px-4 py-2 bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white text-sm font-medium rounded-lg transition-colors"
+                            className="gold-glow-btn px-4 py-2.5 text-xs font-bold rounded-xl transition-all cursor-pointer"
                         >
                             + Record Payment
                         </button>
@@ -265,28 +263,28 @@ export default function PaymentsPage() {
             </div>
 
             {/* Rent Status Grid */}
-            <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl overflow-hidden">
+            <div className="glass-card rounded-2xl overflow-hidden shadow-lg border border-[var(--color-border)]">
                 <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
+                    <table className="w-full text-xs">
                         <thead>
-                            <tr className="border-b border-[var(--color-border)] text-left text-[var(--color-text-muted)] text-xs uppercase tracking-wider">
-                                <th className="px-5 py-3 sticky left-0 bg-[var(--color-surface)] z-10">Tenant</th>
-                                <th className="px-5 py-3">Property</th>
-                                {months.map(m => <th key={m} className="px-4 py-3 text-center">{formatMonth(m)}</th>)}
+                            <tr className="border-b border-[var(--color-border)] bg-[var(--color-surface-dark)]/50 text-left text-[var(--color-text-muted)] uppercase tracking-wider font-bold">
+                                <th className="px-5 py-3.5 sticky left-0 bg-[var(--color-surface)] z-10">Tenant</th>
+                                <th className="px-5 py-3.5">Property</th>
+                                {months.map(m => <th key={m} className="px-4 py-3.5 text-center">{formatMonth(m)}</th>)}
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-[var(--color-border)]">
+                        <tbody className="divide-y divide-[var(--color-border)]/60 text-slate-200">
                             {activeTenants.map(t => (
-                                <tr key={t.id} className="hover:bg-[var(--color-surface-light)]/40 transition-colors">
-                                    <td className="px-5 py-3 font-medium whitespace-nowrap sticky left-0 bg-[var(--color-surface)]">{t.name}</td>
-                                    <td className="px-5 py-3 text-[var(--color-text-muted)] whitespace-nowrap">{propertyMap[t.property_id]?.address || '—'}</td>
+                                <tr key={t.id} className="hover:bg-amber-500/5 transition-colors">
+                                    <td className="px-5 py-3.5 font-bold text-white whitespace-nowrap sticky left-0 bg-[var(--color-surface)]">{t.name}</td>
+                                    <td className="px-5 py-3.5 text-[var(--color-text-muted)] whitespace-nowrap">{propertyMap[t.property_id]?.address || '—'}</td>
                                     {months.map(m => {
                                         const tenantStartMonth = (t.lease_start || '').slice(0, 7);
                                         const isBeforeStart = tenantStartMonth && m < tenantStartMonth;
 
                                         if (isBeforeStart) {
                                             return (
-                                                <td key={m} className="px-4 py-3 text-center text-slate-500 text-xs font-medium">
+                                                <td key={m} className="px-4 py-3.5 text-center text-slate-500 text-xs font-medium">
                                                     —
                                                 </td>
                                             );
@@ -300,15 +298,34 @@ export default function PaymentsPage() {
                                                 ? 'paid'
                                                 : 'partial';
                                         return (
-                                            <td key={m} className="px-4 py-3 text-center">
-                                                <span className={`inline-flex items-center justify-center min-w-20 px-3 py-1 rounded-full text-xs font-medium ${status === 'paid'
-                                                        ? 'bg-[var(--color-success)]/15 text-[var(--color-success)]'
-                                                        : status === 'partial'
-                                                            ? 'bg-[var(--color-warning)]/15 text-[var(--color-warning)]'
-                                                            : 'bg-[var(--color-danger)]/15 text-[var(--color-danger)]'
+                                            <td key={m} className="px-4 py-3.5 text-center">
+                                                {status === 'paid' ? (
+                                                    <span className="inline-flex items-center justify-center min-w-20 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-500/15 border border-emerald-500/30 text-emerald-400">
+                                                        ✓ Paid
+                                                    </span>
+                                                ) : isNormalUser ? (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setPayTarget({
+                                                            tenant: t,
+                                                            property: propertyMap[t.property_id],
+                                                            month: m,
+                                                            amount: rentDue > totalPaid ? (rentDue - totalPaid) : rentDue,
+                                                        })}
+                                                        className="inline-flex items-center justify-center gap-1 min-w-20 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-500/20 hover:bg-amber-500 text-amber-300 hover:text-slate-950 border border-amber-500/40 transition-all cursor-pointer shadow-sm hover:scale-105"
+                                                        title={`Pay rent for ${formatMonth(m)} for ${t.name} (${propertyMap[t.property_id]?.address || 'Property'})`}
+                                                    >
+                                                        💳 Pay {status === 'partial' ? 'Due' : 'Now'}
+                                                    </button>
+                                                ) : (
+                                                    <span className={`inline-flex items-center justify-center min-w-20 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                                                        status === 'partial'
+                                                            ? 'bg-amber-500/15 border border-amber-500/30 text-amber-300'
+                                                            : 'bg-rose-500/15 border border-rose-500/30 text-rose-400'
                                                     }`}>
-                                                    {status === 'paid' ? '✓ Paid' : status === 'partial' ? 'Partial' : 'Pending'}
-                                                </span>
+                                                        {status === 'partial' ? 'Partial' : 'Pending'}
+                                                    </span>
+                                                )}
                                             </td>
                                         );
                                     })}
@@ -316,7 +333,7 @@ export default function PaymentsPage() {
                                 </tr>
                             ))}
                             {activeTenants.length === 0 && (
-                                <tr><td colSpan={2 + months.length} className="px-5 py-8 text-center text-[var(--color-text-muted)]">No active tenants to track.</td></tr>
+                                <tr><td colSpan={2 + months.length} className="px-5 py-12 text-center text-[var(--color-text-muted)]">No active tenants to track.</td></tr>
                             )}
                         </tbody>
                     </table>
@@ -324,29 +341,32 @@ export default function PaymentsPage() {
             </div>
 
             {/* Recent Payments List */}
-            <div>
-                <h2 className="text-lg font-semibold mb-3">Recent Payments</h2>
-                <div className="flex items-center gap-3 mb-4">
-                    <select value={filterMonth} onChange={e => setFilterMonth(e.target.value)}
-                        className="px-3 py-2 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg text-sm focus:outline-none focus:border-[var(--color-primary)] transition-colors">
-                        <option value="">All Months</option>
-                        {months.map(m => <option key={m} value={m}>{formatMonth(m)}</option>)}
-                    </select>
+            <div className="space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <h2 className="text-lg font-bold text-white tracking-tight">Recent Payment Ledger</h2>
+                    <div className="flex items-center gap-3">
+                        <select value={filterMonth} onChange={e => setFilterMonth(e.target.value)}
+                            className="px-3.5 py-2 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl text-xs text-white focus:outline-none focus:border-amber-400 transition-colors">
+                            <option value="">All Months</option>
+                            {months.map(m => <option key={m} value={m}>{formatMonth(m)}</option>)}
+                        </select>
+                    </div>
                 </div>
-                <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl overflow-hidden">
+
+                <div className="glass-card rounded-2xl overflow-hidden shadow-lg border border-[var(--color-border)]">
                     <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
+                        <table className="w-full text-xs">
                             <thead>
-                                <tr className="border-b border-[var(--color-border)] text-left text-[var(--color-text-muted)] text-xs uppercase tracking-wider">
-                                    <th className="px-5 py-3">Tenant</th>
-                                    <th className="px-5 py-3">Amount (₹)</th>
-                                    <th className="px-5 py-3">Type</th>
-                                    <th className="px-5 py-3">Date</th>
-                                    <th className="px-5 py-3">Month</th>
-                                    <th className="px-5 py-3">Note</th>
+                                <tr className="border-b border-[var(--color-border)] bg-[var(--color-surface-dark)]/50 text-left text-[var(--color-text-muted)] uppercase tracking-wider font-bold">
+                                    <th className="px-5 py-3.5">Tenant</th>
+                                    <th className="px-5 py-3.5">Amount (₹)</th>
+                                    <th className="px-5 py-3.5">Type</th>
+                                    <th className="px-5 py-3.5">Date</th>
+                                    <th className="px-5 py-3.5">Month Covered</th>
+                                    <th className="px-5 py-3.5">Note</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-[var(--color-border)]">
+                            <tbody className="divide-y divide-[var(--color-border)]/60 text-slate-200">
                                 {filteredPayments.map(p => (
                                     <tr
                                         key={p.id}
@@ -359,25 +379,25 @@ export default function PaymentsPage() {
                                                 navigate(`/payments/${p.id}`);
                                             }
                                         }}
-                                        className="hover:bg-[var(--color-surface-light)]/40 transition-colors cursor-pointer focus:outline-none focus:bg-[var(--color-surface-light)]/40"
+                                        className="hover:bg-amber-500/5 transition-colors cursor-pointer focus:outline-none"
                                     >
-                                        <td className="px-5 py-3 font-medium">{tenantMap[p.tenant_id]?.name || p.tenant_id}</td>
-                                        <td className="px-5 py-3">₹{Number(p.amount_paid).toLocaleString()}</td>
-                                        <td className="px-5 py-3">
-                                            <span className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${p.payment_type === 'advance'
-                                                    ? 'bg-[var(--color-accent)]/15 text-[var(--color-accent)]'
-                                                    : 'bg-[var(--color-success)]/15 text-[var(--color-success)]'
+                                        <td className="px-5 py-3.5 font-bold text-white">{tenantMap[p.tenant_id]?.name || p.tenant_id}</td>
+                                        <td className="px-5 py-3.5 font-extrabold text-emerald-400">₹{Number(p.amount_paid).toLocaleString()}</td>
+                                        <td className="px-5 py-3.5">
+                                            <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${p.payment_type === 'advance'
+                                                    ? 'bg-amber-500/15 border border-amber-500/30 text-amber-300'
+                                                    : 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-400'
                                                 }`}>
                                                 {formatPaymentType(p.payment_type)}
                                             </span>
                                         </td>
-                                        <td className="px-5 py-3 text-[var(--color-text-muted)]">{p.payment_date}</td>
-                                        <td className="px-5 py-3">{formatMonth(p.month_covered)}</td>
-                                        <td className="px-5 py-3 text-[var(--color-text-muted)] max-w-[240px] truncate">{p.note || '—'}</td>
+                                        <td className="px-5 py-3.5 text-[var(--color-text-muted)]">{p.payment_date}</td>
+                                        <td className="px-5 py-3.5 font-semibold text-white">{formatMonth(p.month_covered)}</td>
+                                        <td className="px-5 py-3.5 text-[var(--color-text-muted)] max-w-[240px] truncate">{p.note || '—'}</td>
                                     </tr>
                                 ))}
                                 {filteredPayments.length === 0 && (
-                                    <tr><td colSpan={6} className="px-5 py-8 text-center text-[var(--color-text-muted)]">No payments recorded.</td></tr>
+                                    <tr><td colSpan={6} className="px-5 py-12 text-center text-[var(--color-text-muted)]">No payments recorded.</td></tr>
                                 )}
                             </tbody>
                         </table>
@@ -387,70 +407,185 @@ export default function PaymentsPage() {
 
             {/* Record / Edit Payment Modal */}
             {canManagePayments && (
-                <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Record Payment">
+                <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Record Rent Payment">
                     <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
-                        <label className="block text-xs text-[var(--color-text-muted)] mb-1">Tenant *</label>
+                        <label className="block text-xs font-semibold text-[var(--color-text-muted)] mb-1">Tenant *</label>
                         <select required value={form.tenant_id} onChange={e => set('tenant_id', e.target.value)}
-                            className="w-full px-3 py-2 bg-[var(--color-surface-dark)] border border-[var(--color-border)] rounded-lg text-sm focus:outline-none focus:border-[var(--color-primary)] transition-colors">
-                            <option value="">Select…</option>
+                            className="w-full px-3.5 py-2.5 bg-[var(--color-surface-dark)] border border-[var(--color-border)] rounded-xl text-xs text-white focus:outline-none focus:border-amber-400 transition-colors">
+                            <option value="">Select tenant…</option>
                             {activeTenants.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                         </select>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-xs text-[var(--color-text-muted)] mb-1">Amount (₹) *</label>
+                            <label className="block text-xs font-semibold text-[var(--color-text-muted)] mb-1">Amount (₹) *</label>
                             <input type="number" min="0.01" step="0.01" required value={form.amount_paid} onChange={e => set('amount_paid', e.target.value)}
-                                className="w-full px-3 py-2 bg-[var(--color-surface-dark)] border border-[var(--color-border)] rounded-lg text-sm focus:outline-none focus:border-[var(--color-primary)] transition-colors" />
+                                placeholder="15000"
+                                className="w-full px-3.5 py-2.5 bg-[var(--color-surface-dark)] border border-[var(--color-border)] rounded-xl text-xs text-white focus:outline-none focus:border-amber-400 transition-colors" />
                         </div>
                         <div>
-                            <label className="block text-xs text-[var(--color-text-muted)] mb-1">Month Covered *</label>
+                            <label className="block text-xs font-semibold text-[var(--color-text-muted)] mb-1">Month Covered *</label>
                             <input type="month" required value={form.month_covered} onChange={e => set('month_covered', e.target.value)}
-                                className="w-full px-3 py-2 bg-[var(--color-surface-dark)] border border-[var(--color-border)] rounded-lg text-sm focus:outline-none focus:border-[var(--color-primary)] transition-colors" />
+                                className="w-full px-3.5 py-2.5 bg-[var(--color-surface-dark)] border border-[var(--color-border)] rounded-xl text-xs text-white focus:outline-none focus:border-amber-400 transition-colors" />
                         </div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-xs text-[var(--color-text-muted)] mb-1">Payment Type *</label>
+                            <label className="block text-xs font-semibold text-[var(--color-text-muted)] mb-1">Payment Type *</label>
                             <select value={form.payment_type} onChange={e => set('payment_type', e.target.value)}
-                                className="w-full px-3 py-2 bg-[var(--color-surface-dark)] border border-[var(--color-border)] rounded-lg text-sm focus:outline-none focus:border-[var(--color-primary)] transition-colors">
+                                className="w-full px-3.5 py-2.5 bg-[var(--color-surface-dark)] border border-[var(--color-border)] rounded-xl text-xs text-white focus:outline-none focus:border-amber-400 transition-colors">
                                 <option value="rent">Rent</option>
                                 <option value="advance">Advance</option>
                             </select>
                         </div>
                         <div>
-                            <label className="block text-xs text-[var(--color-text-muted)] mb-1">Payment Date</label>
+                            <label className="block text-xs font-semibold text-[var(--color-text-muted)] mb-1">Payment Date</label>
                             <input type="date" value={form.payment_date} onChange={e => set('payment_date', e.target.value)}
-                                className="w-full px-3 py-2 bg-[var(--color-surface-dark)] border border-[var(--color-border)] rounded-lg text-sm focus:outline-none focus:border-[var(--color-primary)] transition-colors" />
+                                className="w-full px-3.5 py-2.5 bg-[var(--color-surface-dark)] border border-[var(--color-border)] rounded-xl text-xs text-white focus:outline-none focus:border-amber-400 transition-colors" />
                         </div>
                     </div>
                     <div>
-                        <label className="block text-xs text-[var(--color-text-muted)] mb-1">Note</label>
+                        <label className="block text-xs font-semibold text-[var(--color-text-muted)] mb-1">Note</label>
                         <textarea
                             rows="3"
                             value={form.note}
                             onChange={e => set('note', e.target.value)}
                             placeholder="Add a payment note or reference..."
-                            className="w-full px-3 py-2 bg-[var(--color-surface-dark)] border border-[var(--color-border)] rounded-lg text-sm focus:outline-none focus:border-[var(--color-primary)] transition-colors resize-none"
+                            className="w-full px-3.5 py-2.5 bg-[var(--color-surface-dark)] border border-[var(--color-border)] rounded-xl text-xs text-white focus:outline-none focus:border-amber-400 transition-colors resize-none"
                         />
                     </div>
                     <div className="flex justify-end gap-3 pt-2">
-                        <button type="button" onClick={() => setModalOpen(false)} className="px-4 py-2 text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors">Cancel</button>
-                        <button type="submit" className="px-4 py-2 bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white text-sm font-medium rounded-lg transition-colors">Record Payment</button>
+                        <button type="button" onClick={() => setModalOpen(false)} className="px-4 py-2 text-xs font-semibold text-[var(--color-text-muted)] hover:text-white transition-colors cursor-pointer">Cancel</button>
+                        <button type="submit" className="gold-glow-btn px-5 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer">Record Payment</button>
                     </div>
                     </form>
                 </Modal>
             )}
 
+            {/* Choose Lease & Month Selector Modal */}
+            {paySelectorOpen && (
+                <Modal
+                    isOpen={paySelectorOpen}
+                    open={paySelectorOpen}
+                    onClose={() => setPaySelectorOpen(false)}
+                    title="Pay Rent Online (Select Lease & Month)"
+                    size="md"
+                >
+                    <div className="p-6 space-y-4">
+                        <div>
+                            <label className="block text-xs font-semibold text-[var(--color-text-muted)] mb-1.5">
+                                Select Rented Property / Lease *
+                            </label>
+                            <select
+                                value={selectedTenantId}
+                                onChange={(e) => setSelectedTenantId(e.target.value)}
+                                className="w-full px-3.5 py-2.5 bg-[var(--color-surface-dark)] border border-[var(--color-border)] rounded-xl text-xs text-white focus:outline-none focus:border-amber-400 transition-colors font-medium"
+                            >
+                                {activeTenants.map((t) => (
+                                    <option key={t.id} value={t.id}>
+                                        {t.name} — {propertyMap[t.property_id]?.address || 'Property'} (Rent: ₹{Number(propertyMap[t.property_id]?.rent_amount || 0).toLocaleString('en-IN')}/mo)
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div>
+                            <div className="flex items-center justify-between mb-1.5">
+                                <label className="block text-xs font-semibold text-[var(--color-text-muted)]">
+                                    Billing Month (in chronological order) *
+                                </label>
+                                <span className="text-[10px] text-amber-400 font-semibold">Oldest pending first</span>
+                            </div>
+                            {unpaidMonthsForSelectedTenant.length > 0 ? (
+                                <select
+                                    value={selectedMonth}
+                                    onChange={(e) => setSelectedMonth(e.target.value)}
+                                    className="w-full px-3.5 py-2.5 bg-[var(--color-surface-dark)] border border-[var(--color-border)] rounded-xl text-xs text-white focus:outline-none focus:border-amber-400 transition-colors font-mono font-bold"
+                                >
+                                    {unpaidMonthsForSelectedTenant.map((m) => {
+                                        const rentDue = Number(propertyMap[currentSelectedTenant?.property_id]?.rent_amount || 0);
+                                        const paid = paymentTotals[`${currentSelectedTenant?.id}__${m}`] || 0;
+                                        const pending = rentDue - paid;
+                                        return (
+                                            <option key={m} value={m}>
+                                                {formatMonth(m)} — Due: ₹{pending.toLocaleString('en-IN')} (Pending)
+                                            </option>
+                                        );
+                                    })}
+                                </select>
+                            ) : (
+                                <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs">
+                                    ✓ All rental cycles are completely paid for this property!
+                                </div>
+                            )}
+                        </div>
+
+                        {currentSelectedTenant && (
+                            <div className="rounded-xl bg-[var(--color-surface-dark)] p-3 border border-[var(--color-border)] space-y-1 text-xs">
+                                <div className="flex justify-between">
+                                    <span className="text-[var(--color-text-muted)]">Tenant Name:</span>
+                                    <span className="font-semibold text-white">{currentSelectedTenant.name}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-[var(--color-text-muted)]">Property:</span>
+                                    <span className="font-semibold text-white">{propertyMap[currentSelectedTenant.property_id]?.address || '—'}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-[var(--color-text-muted)]">Selected Month:</span>
+                                    <span className="font-semibold text-amber-400">{formatMonth(selectedMonth)}</span>
+                                </div>
+                                <div className="flex justify-between pt-1 border-t border-[var(--color-border)]">
+                                    <span className="text-[var(--color-text-muted)] font-bold">Total Rent Payable:</span>
+                                    <span className="font-extrabold text-amber-300 text-sm">
+                                        ₹{Number(propertyMap[currentSelectedTenant.property_id]?.rent_amount || 0).toLocaleString('en-IN')}
+                                    </span>
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="flex justify-end gap-3 pt-2 border-t border-[var(--color-border)]">
+                            <button
+                                type="button"
+                                onClick={() => setPaySelectorOpen(false)}
+                                className="px-4 py-2 text-xs font-semibold text-[var(--color-text-muted)] hover:text-white"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                disabled={!currentSelectedTenant || unpaidMonthsForSelectedTenant.length === 0}
+                                onClick={() => {
+                                    setPaySelectorOpen(false);
+                                    const rentDue = Number(propertyMap[currentSelectedTenant.property_id]?.rent_amount || 0);
+                                    const paid = paymentTotals[`${currentSelectedTenant.id}__${selectedMonth}`] || 0;
+                                    setPayTarget({
+                                        tenant: currentSelectedTenant,
+                                        property: propertyMap[currentSelectedTenant.property_id],
+                                        month: selectedMonth,
+                                        amount: rentDue > paid ? (rentDue - paid) : rentDue,
+                                    });
+                                }}
+                                className="gold-glow-btn px-5 py-2 text-xs font-bold rounded-xl transition-all disabled:opacity-50 cursor-pointer"
+                            >
+                                Proceed to Checkout →
+                            </button>
+                        </div>
+                    </div>
+                </Modal>
+            )}
+
             {/* Online Razorpay Payment Modal */}
-            {onlinePayModalOpen && activeTenants.length > 0 && (
+            {payTarget && (
                 <PaymentModal
-                    tenant={activeTenants[0]}
-                    amount={Number(propertyMap[activeTenants[0].property_id]?.rent_amount || 15000)}
-                    onClose={() => setOnlinePayModalOpen(false)}
+                    tenant={payTarget.tenant}
+                    property={payTarget.property}
+                    amount={payTarget.amount}
+                    monthCovered={payTarget.month}
+                    onClose={() => setPayTarget(null)}
                     onSuccess={async () => {
-                        setOnlinePayModalOpen(false);
-                        toast.success('Rent payment processed and recorded successfully!');
+                        setPayTarget(null);
+                        toast.success(`Rent payment for ${formatMonth(payTarget.month)} recorded successfully!`);
                         await load();
                     }}
                 />

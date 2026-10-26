@@ -43,13 +43,17 @@ api.interceptors.request.use((config) => {
 export const fetchAuthSetup = () => api.get('/auth/setup').then((response) => response.data);
 export const bootstrapAdmin = (data) => api.post('/auth/bootstrap-admin', data).then((response) => response.data);
 export const login = (data) => api.post('/auth/login', data).then((response) => response.data);
+export const register = (data) => api.post('/auth/register', data).then((response) => response.data);
 export const refreshAuthSession = (refresh_token) => api.post('/auth/refresh', { refresh_token }).then((response) => response.data);
 export const fetchMe = () => api.get('/auth/me').then((response) => response.data);
 
 // ── User Management ───────────────────────────────────────────────
 export const fetchUsers = () => api.get('/users/').then((response) => response.data);
+export const fetchPendingUsers = () => api.get('/users/pending').then((response) => response.data);
 export const createUser = (data) => api.post('/users/', data).then((response) => response.data);
 export const updateUser = (id, data) => api.put(`/users/${id}`, data).then((response) => response.data);
+export const approveUser = (id) => api.post(`/users/${id}/approve`).then((response) => response.data);
+export const rejectUser = (id, rejection_reason) => api.post(`/users/${id}/reject`, { rejection_reason }).then((response) => response.data);
 export const deleteUser = (id) => api.delete(`/users/${id}`);
 
 // ── Properties ────────────────────────────────────────────────────
@@ -86,6 +90,8 @@ export const fetchMarketplaceCategories = () => api.get('/marketplace/categories
 export const fetchMarketplaceListings = (params) => api.get('/marketplace/listings', { params }).then((response) => response.data);
 export const fetchMarketplaceListing = (id) => api.get(`/marketplace/listings/${id}`).then((response) => response.data);
 export const createMarketplaceListing = (data) => api.post('/marketplace/listings', data).then((response) => response.data);
+/** Create a commercial space listing. Requires owner or admin role. */
+export const createCommercialListing = (data) => api.post('/marketplace/commercial-listings', data).then((response) => response.data);
 export const updateMarketplaceListing = (id, data) => api.put(`/marketplace/listings/${id}`, data).then((response) => response.data);
 export const deleteMarketplaceListing = (id) => api.delete(`/marketplace/listings/${id}`);
 export const uploadMarketplaceImages = (formData) => api.post('/marketplace/upload-images', formData, {

@@ -160,6 +160,9 @@ class AuthUserOut(BaseModel):
     full_name: Optional[str] = None
     role: str = Field(pattern=ROLE_PATTERN)
     is_active: bool = True
+    is_approved: Optional[bool] = None
+    is_rejected: Optional[bool] = None
+    rejection_reason: Optional[str] = None
     phone: Optional[str] = None
     company_or_agency: Optional[str] = None
 
@@ -187,6 +190,9 @@ class AppUserUpdate(BaseModel):
     full_name: Optional[str] = None
     role: Optional[str] = Field(default=None, pattern=ROLE_PATTERN)
     is_active: Optional[bool] = None
+    is_approved: Optional[bool] = None
+    is_rejected: Optional[bool] = None
+    rejection_reason: Optional[str] = None
     password: Optional[str] = Field(default=None, min_length=6)
     phone: Optional[str] = None
     company_or_agency: Optional[str] = None
@@ -206,6 +212,12 @@ class UserRegisterRequest(BaseModel):
     company_or_agency: Optional[str] = None
 
 
+class RegisterPendingResponse(BaseModel):
+    message: str
+    email: str
+    status: str = "pending_approval"
+
+
 # ──────────────────────────── Marketplace ───────────────────────────
 
 class ListingCategoryOut(BaseModel):
@@ -218,6 +230,15 @@ class ListingCategoryOut(BaseModel):
         from_attributes = True
 
 
+class CommercialDetails(BaseModel):
+    square_footage: Optional[float] = Field(default=None, ge=0, description="Total floor area in sq ft")
+    zoning_type: Optional[str] = Field(default=None, description="e.g. retail, office, warehouse, mixed-use")
+    lease_terms: Optional[str] = Field(default=None, description="Lease duration / terms e.g. '3 years'")
+    floor_number: Optional[int] = Field(default=None, description="Floor level (0 = ground)")
+    parking_spaces: Optional[int] = Field(default=None, ge=0, description="Number of dedicated parking spots")
+    amenities: Optional[list[str]] = Field(default=[], description="e.g. ['CCTV', 'Power Backup', 'Lift']")
+
+
 class ListingBase(BaseModel):
     title: str
     description: Optional[str] = None
@@ -228,10 +249,17 @@ class ListingBase(BaseModel):
     city: str
     locality: Optional[str] = None
     images: Optional[list[str]] = []
+    property_type: str = Field(default="residential", pattern="^(residential|commercial)$")
 
 
 class ListingCreate(ListingBase):
     pass
+
+
+class CommercialListingCreate(ListingBase):
+    """Extended listing create for commercial spaces."""
+    property_type: str = Field(default="commercial", pattern="^(commercial)$")
+    commercial_details: CommercialDetails = Field(default_factory=CommercialDetails)
 
 
 class ListingUpdate(BaseModel):
@@ -252,6 +280,7 @@ class ListingOut(ListingBase):
     seller_id: str
     status: str
     created_at: datetime
+    commercial_details: Optional[Any] = None
 
     class Config:
         from_attributes = True
@@ -429,5 +458,19 @@ class MyRentalDetailsOut(BaseModel):
     current_month_status: Optional[str] = None
     payment_schedule: list[MonthlyRentScheduleItem] = []
     applications: list[RentalApplicationOut] = []
+
+
+# ──────────────────────────── Buyer Rent Payment ─────────────────────
+
+class BuyerPayRentRequest(BaseModel):
+    tenant_id: str = Field(..., description="The tenant record ID for the buyer")
+    month_covered: str = Field(
+        ...,
+        description="Month for this payment e.g. '2026-10'",
+        pattern=r"^\d{4}-(0[1-9]|1[0-2])$",
+    )
+    amount_paid: float = Field(gt=0, description="Amount paid in INR")
+    payment_date: Optional[date] = Field(default=None, description="Date of payment (defaults to today)")
+    note: Optional[str] = Field(default=None, description="Optional note for this payment")
 
 

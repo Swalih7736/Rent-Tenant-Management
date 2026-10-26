@@ -1,5 +1,5 @@
 /**
- * Reusable stat card for the dashboard overview.
+ * Reusable luxury stat card for the dashboard overview.
  * Supports optional onClick to make the card navigable.
  */
 export default function StatCard({ icon, label, value, accent = 'var(--color-primary)', onClick }) {
@@ -7,28 +7,34 @@ export default function StatCard({ icon, label, value, accent = 'var(--color-pri
     return (
         <Tag
             onClick={onClick}
-            className={`group relative bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-5 hover:border-[var(--color-primary)]/40 transition-all duration-300 hover:shadow-lg hover:shadow-[var(--color-primary)]/5 text-left w-full ${onClick ? 'cursor-pointer' : ''}`}
+            className={`group relative glass-card rounded-2xl p-5 text-left w-full transition-all duration-300 ${
+                onClick ? 'cursor-pointer hover:-translate-y-1 hover:border-amber-500/40' : ''
+            }`}
         >
-            {/* Glow accent */}
+            {/* Ambient accent top/left glow */}
             <div
-                className="absolute top-0 left-0 w-1 h-full rounded-l-xl"
-                style={{ background: accent }}
+                className="absolute top-0 left-0 w-1.5 h-full rounded-l-2xl transition-all group-hover:w-2"
+                style={{ background: accent, boxShadow: `0 0 12px ${accent}` }}
             />
+            
             <div className="flex items-center gap-4">
                 <div
-                    className="w-11 h-11 rounded-lg flex items-center justify-center text-xl"
-                    style={{ background: `${accent}22` }}
+                    className="w-12 h-12 rounded-xl flex items-center justify-center text-xl shadow-inner transition-transform duration-300 group-hover:scale-110"
+                    style={{ 
+                        background: `radial-gradient(circle, ${accent}25 0%, ${accent}08 100%)`,
+                        border: `1px solid ${accent}40`,
+                    }}
                 >
                     {icon}
                 </div>
-                <div>
-                    <p className="text-xs text-[var(--color-text-muted)] uppercase tracking-wider mb-1">{label}</p>
-                    <p className="text-2xl font-bold tracking-tight">{value}</p>
+                <div className="min-w-0 flex-1">
+                    <p className="text-[11px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider mb-1 truncate">{label}</p>
+                    <p className="text-2xl font-extrabold tracking-tight text-white">{value}</p>
                 </div>
             </div>
             {onClick && (
-                <div className="absolute bottom-2 right-3 text-xs text-[var(--color-text-muted)] opacity-0 group-hover:opacity-100 transition-opacity">
-                    Click to view →
+                <div className="mt-3 flex items-center justify-end text-[10px] font-bold text-amber-400 opacity-60 group-hover:opacity-100 transition-opacity">
+                    View details →
                 </div>
             )}
         </Tag>

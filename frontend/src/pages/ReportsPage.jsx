@@ -6,7 +6,7 @@ import {
     PieChart, Pie, Cell, Legend,
 } from 'recharts';
 
-const PIE_COLORS = ['#10b981', '#f59e0b', '#ef4444'];
+const PIE_COLORS = ['#10b981', '#f59e0b', '#f43f5e'];
 
 export default function ReportsPage() {
     const [data, setData] = useState(null);
@@ -113,9 +113,9 @@ export default function ReportsPage() {
     const CustomTooltip = ({ active, payload }) => {
         if (active && payload && payload.length) {
             return (
-                <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg px-3 py-2 shadow-xl">
-                    <p className="text-sm font-medium">{payload[0].payload.name}</p>
-                    <p className="text-sm text-[var(--color-primary-light)]">₹{Number(payload[0].value).toLocaleString()}</p>
+                <div className="glass-card rounded-xl px-4 py-3 shadow-2xl border border-[var(--color-border)]">
+                    <p className="text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">{payload[0].payload.name}</p>
+                    <p className="text-base font-extrabold text-[var(--color-primary)] mt-0.5">₹{Number(payload[0].value).toLocaleString()}</p>
                 </div>
             );
         }
@@ -125,92 +125,112 @@ export default function ReportsPage() {
     return (
         <div className="space-y-8 animate-fade-in-up">
             {/* Header */}
-            <div>
-                <h1 className="text-2xl font-bold tracking-tight">Reports & Analytics</h1>
-                <p className="text-[var(--color-text-muted)] text-sm mt-1">Insights into your rental business</p>
+            <div className="border-b border-[var(--color-border)]/60 pb-5">
+                <h1 className="text-3xl font-extrabold tracking-tight text-white">
+                    Financial Reports & <span className="gold-gradient-text">Analytics</span>
+                </h1>
+                <p className="text-[var(--color-text-muted)] text-sm mt-1">
+                    Real-time performance metrics and revenue intelligence for your rental portfolio.
+                </p>
             </div>
 
             {/* Summary Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 stagger">
-                <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-5 relative overflow-hidden">
-                    <div className="absolute top-0 left-0 w-1 h-full bg-[var(--color-success)]" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 stagger">
+                <div className="glass-card rounded-2xl p-6 relative overflow-hidden group hover:border-emerald-500/40 transition-all duration-300">
+                    <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-teal-400 opacity-80" />
                     <div className="flex items-center justify-between mb-3">
-                        <p className="text-sm text-[var(--color-text-muted)] font-medium">Total Revenue</p>
-                        <span className="text-lg">💰</span>
+                        <p className="text-xs text-[var(--color-text-muted)] font-bold uppercase tracking-wider">Total Revenue</p>
+                        <div className="w-9 h-9 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 text-sm">
+                            ₹
+                        </div>
                     </div>
-                    <p className="text-2xl font-bold">₹{stats.totalRevenue.toLocaleString()}</p>
-                    <p className="text-xs text-[var(--color-text-muted)] mt-1">Collected this year</p>
+                    <p className="text-3xl font-extrabold text-white tracking-tight">₹{stats.totalRevenue.toLocaleString()}</p>
+                    <p className="text-xs text-emerald-400/80 font-medium mt-1 flex items-center gap-1">
+                        <span>●</span> Collected this fiscal period
+                    </p>
                 </div>
 
-                <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-5 relative overflow-hidden">
-                    <div className="absolute top-0 left-0 w-1 h-full bg-[var(--color-accent)]" />
+                <div className="glass-card rounded-2xl p-6 relative overflow-hidden group hover:border-amber-500/40 transition-all duration-300">
+                    <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[var(--color-primary)] to-amber-300 opacity-80" />
                     <div className="flex items-center justify-between mb-3">
-                        <p className="text-sm text-[var(--color-text-muted)] font-medium">Collection Rate</p>
-                        <span className="text-lg">📈</span>
+                        <p className="text-xs text-[var(--color-text-muted)] font-bold uppercase tracking-wider">Collection Efficiency</p>
+                        <div className="w-9 h-9 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-[var(--color-primary)] text-sm">
+                            📈
+                        </div>
                     </div>
-                    <p className="text-2xl font-bold">{stats.collectionRate}%</p>
-                    <p className="text-xs text-[var(--color-text-muted)] mt-1">Of expected revenue</p>
+                    <p className="text-3xl font-extrabold text-white tracking-tight">{stats.collectionRate}%</p>
+                    <p className="text-xs text-amber-400/80 font-medium mt-1 flex items-center gap-1">
+                        <span>●</span> Realized vs expected rent
+                    </p>
                 </div>
 
-                <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-5 relative overflow-hidden">
-                    <div className="absolute top-0 left-0 w-1 h-full bg-[var(--color-primary)]" />
+                <div className="glass-card rounded-2xl p-6 relative overflow-hidden group hover:border-blue-500/40 transition-all duration-300">
+                    <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 to-indigo-500 opacity-80" />
                     <div className="flex items-center justify-between mb-3">
-                        <p className="text-sm text-[var(--color-text-muted)] font-medium">Properties</p>
-                        <span className="text-lg">🏢</span>
+                        <p className="text-xs text-[var(--color-text-muted)] font-bold uppercase tracking-wider">Total Properties</p>
+                        <div className="w-9 h-9 rounded-xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-center text-blue-400 text-sm">
+                            🏢
+                        </div>
                     </div>
-                    <p className="text-2xl font-bold">{stats.propertyCount}</p>
-                    <p className="text-xs text-[var(--color-text-muted)] mt-1">{stats.totalUnits} total units</p>
+                    <p className="text-3xl font-extrabold text-white tracking-tight">{stats.propertyCount}</p>
+                    <p className="text-xs text-slate-400 font-medium mt-1 flex items-center gap-1">
+                        <span>●</span> {stats.totalUnits} registered units
+                    </p>
                 </div>
 
-                <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-5 relative overflow-hidden">
-                    <div className="absolute top-0 left-0 w-1 h-full bg-[var(--color-warning)]" />
+                <div className="glass-card rounded-2xl p-6 relative overflow-hidden group hover:border-purple-500/40 transition-all duration-300">
+                    <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-purple-500 to-pink-500 opacity-80" />
                     <div className="flex items-center justify-between mb-3">
-                        <p className="text-sm text-[var(--color-text-muted)] font-medium">Active Tenants</p>
-                        <span className="text-lg">👥</span>
+                        <p className="text-xs text-[var(--color-text-muted)] font-bold uppercase tracking-wider">Active Occupants</p>
+                        <div className="w-9 h-9 rounded-xl bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-purple-400 text-sm">
+                            👥
+                        </div>
                     </div>
-                    <p className="text-2xl font-bold">{stats.activeTenantCount}</p>
-                    <p className="text-xs text-[var(--color-text-muted)] mt-1">Currently leasing</p>
+                    <p className="text-3xl font-extrabold text-white tracking-tight">{stats.activeTenantCount}</p>
+                    <p className="text-xs text-purple-400/80 font-medium mt-1 flex items-center gap-1">
+                        <span>●</span> Active verified leases
+                    </p>
                 </div>
             </div>
 
             {/* Charts Row */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Revenue by Property - Bar Chart */}
-                <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-6">
-                    <div className="mb-4">
-                        <h2 className="text-lg font-semibold">Revenue by Property</h2>
-                        <p className="text-sm text-[var(--color-text-muted)]">Total collected rent per property</p>
+                <div className="glass-card rounded-2xl p-6 shadow-xl border border-[var(--color-border)]">
+                    <div className="mb-6">
+                        <h2 className="text-lg font-bold text-white">Revenue by Property</h2>
+                        <p className="text-xs text-[var(--color-text-muted)] mt-0.5">Cumulative collected rent broken down per asset</p>
                     </div>
                     {stats.barData.length > 0 ? (
                         <ResponsiveContainer width="100%" height={300}>
                             <BarChart data={stats.barData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+                                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
                                 <XAxis
                                     dataKey="name"
-                                    tick={{ fill: 'var(--color-text-muted)', fontSize: 12 }}
-                                    axisLine={{ stroke: 'var(--color-border)' }}
+                                    tick={{ fill: 'var(--color-text-muted)', fontSize: 11 }}
+                                    axisLine={{ stroke: 'rgba(255,255,255,0.1)' }}
                                 />
                                 <YAxis
-                                    tick={{ fill: 'var(--color-text-muted)', fontSize: 12 }}
-                                    axisLine={{ stroke: 'var(--color-border)' }}
+                                    tick={{ fill: 'var(--color-text-muted)', fontSize: 11 }}
+                                    axisLine={{ stroke: 'rgba(255,255,255,0.1)' }}
                                     tickFormatter={(v) => `₹${v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v}`}
                                 />
                                 <Tooltip content={<CustomTooltip />} />
-                                <Bar dataKey="revenue" fill="var(--color-primary)" radius={[6, 6, 0, 0]} />
+                                <Bar dataKey="revenue" fill="var(--color-primary)" radius={[8, 8, 0, 0]} />
                             </BarChart>
                         </ResponsiveContainer>
                     ) : (
                         <div className="h-[300px] flex items-center justify-center text-[var(--color-text-muted)] text-sm">
-                            No payment data yet
+                            No payment data recorded yet
                         </div>
                     )}
                 </div>
 
                 {/* Payment Status - Pie Chart */}
-                <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-6">
-                    <div className="mb-4">
-                        <h2 className="text-lg font-semibold">Payment Status</h2>
-                        <p className="text-sm text-[var(--color-text-muted)]">Distribution of payment statuses</p>
+                <div className="glass-card rounded-2xl p-6 shadow-xl border border-[var(--color-border)]">
+                    <div className="mb-6">
+                        <h2 className="text-lg font-bold text-white">Current Month Settlement</h2>
+                        <p className="text-xs text-[var(--color-text-muted)] mt-0.5">Distribution of rent payment statuses across active tenants</p>
                     </div>
                     {stats.pieData.length > 0 ? (
                         <ResponsiveContainer width="100%" height={300}>
@@ -219,9 +239,9 @@ export default function ReportsPage() {
                                     data={stats.pieData}
                                     cx="50%"
                                     cy="50%"
-                                    innerRadius={60}
-                                    outerRadius={100}
-                                    paddingAngle={4}
+                                    innerRadius={65}
+                                    outerRadius={105}
+                                    paddingAngle={5}
                                     dataKey="value"
                                     label={({ name, percentage }) => `${name} ${percentage}%`}
                                 >
@@ -233,14 +253,15 @@ export default function ReportsPage() {
                                     ))}
                                 </Pie>
                                 <Legend
-                                    wrapperStyle={{ fontSize: '13px', color: 'var(--color-text-muted)' }}
+                                    wrapperStyle={{ fontSize: '12px', color: 'var(--color-text-muted)', paddingTop: '10px' }}
                                 />
                                 <Tooltip
                                     contentStyle={{
-                                        background: 'var(--color-surface)',
-                                        border: '1px solid var(--color-border)',
-                                        borderRadius: '8px',
-                                        color: 'var(--color-text)',
+                                        background: 'rgba(18, 24, 36, 0.95)',
+                                        border: '1px solid rgba(245, 158, 11, 0.3)',
+                                        borderRadius: '12px',
+                                        color: '#ffffff',
+                                        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)',
                                     }}
                                     formatter={(value, name) => [`${value} tenant${value !== 1 ? 's' : ''}`, name]}
                                 />

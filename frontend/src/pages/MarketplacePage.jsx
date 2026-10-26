@@ -155,13 +155,13 @@ export default function MarketplacePage() {
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-[var(--color-border)] pb-5">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight text-white">Marketplace & Classifieds</h1>
-                    <p className="text-sm text-[var(--color-text-muted)] mt-1">Browse properties, apartments, and items for sale and rent.</p>
+                    <h1 className="text-2xl font-extrabold tracking-tight text-white gold-gradient-text">Marketplace & Classifieds</h1>
+                    <p className="text-sm text-[var(--color-text-muted)] mt-1">Browse luxury properties, apartments, and exclusive rental suites.</p>
                 </div>
                 {isSeller && (
                     <button
                         onClick={() => setShowModal(true)}
-                        className="rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] px-4 py-2.5 text-sm font-semibold text-white transition-all shadow-md self-start sm:self-auto"
+                        className="gold-glow-btn rounded-xl px-4 py-2.5 text-xs font-bold transition-all shadow-md self-start sm:self-auto cursor-pointer"
                     >
                         + Create a Listing
                     </button>
@@ -169,23 +169,23 @@ export default function MarketplacePage() {
             </div>
 
             {/* Filter Bar */}
-            <form onSubmit={handleSearch} className="grid grid-cols-1 md:grid-cols-5 gap-3 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-4 shadow-sm">
+            <form onSubmit={handleSearch} className="grid grid-cols-1 md:grid-cols-5 gap-3 glass-card rounded-2xl p-4 shadow-sm">
                 <div>
-                    <label className="block text-xs font-semibold text-[var(--color-text-muted)] mb-1 uppercase tracking-wider">City</label>
+                    <label className="block text-[11px] font-bold text-[var(--color-text-muted)] mb-1 uppercase tracking-wider">City</label>
                     <input
                         type="text"
                         placeholder="e.g. New York"
                         value={city}
                         onChange={(e) => setCity(e.target.value)}
-                        className="w-full text-xs px-3 py-2 rounded-xl bg-[var(--color-surface-light)] border border-[var(--color-border)] text-white focus:outline-none focus:border-[var(--color-primary)]"
+                        className="w-full text-xs px-3 py-2 rounded-xl bg-[var(--color-surface-dark)] border border-[var(--color-border)] text-white focus:outline-none focus:border-amber-400"
                     />
                 </div>
                 <div>
-                    <label className="block text-xs font-semibold text-[var(--color-text-muted)] mb-1 uppercase tracking-wider">Type</label>
+                    <label className="block text-[11px] font-bold text-[var(--color-text-muted)] mb-1 uppercase tracking-wider">Type</label>
                     <select
                         value={listingType}
                         onChange={(e) => setListingType(e.target.value)}
-                        className="w-full text-xs px-3 py-2 rounded-xl bg-[var(--color-surface-light)] border border-[var(--color-border)] text-white focus:outline-none focus:border-[var(--color-primary)]"
+                        className="w-full text-xs px-3 py-2 rounded-xl bg-[var(--color-surface-dark)] border border-[var(--color-border)] text-white focus:outline-none focus:border-amber-400"
                     >
                         <option value="">All Types</option>
                         <option value="RENT">For Rent</option>
@@ -193,29 +193,29 @@ export default function MarketplacePage() {
                     </select>
                 </div>
                 <div>
-                    <label className="block text-xs font-semibold text-[var(--color-text-muted)] mb-1 uppercase tracking-wider">Min Price</label>
+                    <label className="block text-[11px] font-bold text-[var(--color-text-muted)] mb-1 uppercase tracking-wider">Min Price</label>
                     <input
                         type="number"
                         placeholder="0"
                         value={minPrice}
                         onChange={(e) => setMinPrice(e.target.value)}
-                        className="w-full text-xs px-3 py-2 rounded-xl bg-[var(--color-surface-light)] border border-[var(--color-border)] text-white focus:outline-none focus:border-[var(--color-primary)]"
+                        className="w-full text-xs px-3 py-2 rounded-xl bg-[var(--color-surface-dark)] border border-[var(--color-border)] text-white focus:outline-none focus:border-amber-400"
                     />
                 </div>
                 <div>
-                    <label className="block text-xs font-semibold text-[var(--color-text-muted)] mb-1 uppercase tracking-wider">Max Price</label>
+                    <label className="block text-[11px] font-bold text-[var(--color-text-muted)] mb-1 uppercase tracking-wider">Max Price</label>
                     <input
                         type="number"
                         placeholder="Any"
                         value={maxPrice}
                         onChange={(e) => setMaxPrice(e.target.value)}
-                        className="w-full text-xs px-3 py-2 rounded-xl bg-[var(--color-surface-light)] border border-[var(--color-border)] text-white focus:outline-none focus:border-[var(--color-primary)]"
+                        className="w-full text-xs px-3 py-2 rounded-xl bg-[var(--color-surface-dark)] border border-[var(--color-border)] text-white focus:outline-none focus:border-amber-400"
                     />
                 </div>
                 <div className="flex items-end">
                     <button
                         type="submit"
-                        className="w-full rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] py-2 text-xs font-bold text-white transition-colors"
+                        className="w-full rounded-xl gold-glow-btn py-2 text-xs font-bold cursor-pointer"
                     >
                         Apply Filters
                     </button>
@@ -228,10 +228,10 @@ export default function MarketplacePage() {
                     <button
                         key={cat.id}
                         onClick={() => handleCategoryClick(cat.id)}
-                        className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all border ${
+                        className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all border cursor-pointer ${
                             selectedCategory === cat.id
-                                ? 'bg-[var(--color-primary)] border-[var(--color-primary)] text-white shadow-sm'
-                                : 'bg-[var(--color-surface)] border-[var(--color-border)] text-[var(--color-text-muted)] hover:text-white'
+                                ? 'bg-amber-500 border-amber-400 text-slate-950 shadow-md shadow-amber-500/20'
+                                : 'bg-[var(--color-surface)] border-[var(--color-border)] text-[var(--color-text-muted)] hover:text-white hover:border-amber-500/30'
                         }`}
                     >
                         {cat.name}
@@ -254,7 +254,7 @@ export default function MarketplacePage() {
                         <div
                             key={item.id}
                             onClick={() => navigate(`/marketplace/${item.id}`)}
-                            className="group cursor-pointer rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] overflow-hidden shadow-sm hover:shadow-md transition-all flex flex-col justify-between"
+                            className="group cursor-pointer rounded-2xl border border-[var(--color-border)] glass-card overflow-hidden transition-all duration-300 flex flex-col justify-between hover:-translate-y-1 hover:border-amber-500/40"
                         >
                             <div>
                                 <div className="h-44 w-full bg-[var(--color-surface-dark)] relative flex items-center justify-center overflow-hidden">
@@ -262,31 +262,31 @@ export default function MarketplacePage() {
                                         <img
                                             src={item.images[0]}
                                             alt={item.title}
-                                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                                         />
                                     ) : (
                                         <div className="text-5xl">🏢</div>
                                     )}
-                                    <span className={`absolute top-3 left-3 text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-md ${
-                                        item.listing_type === 'RENT' ? 'bg-cyan-500 text-white' : 'bg-emerald-500 text-white'
+                                    <span className={`absolute top-3 left-3 text-[10px] uppercase font-bold tracking-wider px-2.5 py-1 rounded-lg shadow-md ${
+                                        item.listing_type === 'RENT' ? 'bg-amber-500 text-slate-950 ring-1 ring-amber-300' : 'bg-emerald-500 text-slate-950 ring-1 ring-emerald-300'
                                     }`}>
                                         {item.listing_type === 'RENT' ? 'For Rent' : 'For Sale'}
                                     </span>
                                 </div>
 
                                 <div className="p-4">
-                                    <h3 className="font-semibold text-sm line-clamp-1 group-hover:text-[var(--color-primary-light)] transition-colors text-white">{item.title}</h3>
+                                    <h3 className="font-bold text-sm line-clamp-1 group-hover:text-amber-400 transition-colors text-white">{item.title}</h3>
                                     <p className="text-xs text-[var(--color-text-muted)] mt-1">{item.city}{item.locality ? `, ${item.locality}` : ''}</p>
                                     <p className="text-xs text-[var(--color-text-muted)] mt-2 line-clamp-2">{item.description}</p>
                                 </div>
                             </div>
 
-                            <div className="p-4 border-t border-[var(--color-border)] flex items-center justify-between">
-                                <span className="text-sm font-bold text-white">
+                            <div className="p-4 border-t border-[var(--color-border)] flex items-center justify-between bg-[var(--color-surface-dark)]/30">
+                                <span className="text-sm font-extrabold text-amber-400">
                                     ${item.price.toLocaleString()}
                                     {item.listing_type === 'RENT' && <span className="text-[10px] text-[var(--color-text-muted)] font-normal">/{item.rent_frequency}</span>}
                                 </span>
-                                <span className="text-xs text-[var(--color-primary-light)] font-semibold group-hover:underline">View Details →</span>
+                                <span className="text-xs text-amber-400 font-bold group-hover:underline">View Details →</span>
                             </div>
                         </div>
                     ))}
@@ -438,7 +438,7 @@ export default function MarketplacePage() {
                             <button
                                 type="submit"
                                 disabled={submitting}
-                                className="w-full rounded-xl bg-[var(--color-primary)] py-3 text-sm font-semibold text-white hover:bg-[var(--color-primary-dark)] transition-colors disabled:opacity-60"
+                                className="w-full rounded-xl gold-glow-btn py-3 text-sm font-bold disabled:opacity-60 cursor-pointer"
                             >
                                 {submitting ? 'Submitting...' : 'Submit Listing'}
                             </button>

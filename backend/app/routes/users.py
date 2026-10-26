@@ -5,6 +5,7 @@ Admin-only user management routes.
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel, Field
 
 from app.config import get_admin_auth_client, get_db_client
 from app.models import AppUserCreate, AppUserOut, AppUserUpdate, AuthUserOut
@@ -43,14 +44,35 @@ def _full_name_from_auth_user(auth_user: Any) -> str | None:
 
 def _serialize_user(auth_user: Any, profile: dict | None = None) -> AppUserOut:
     profile = profile or {}
+    meta = getattr(auth_user, "user_metadata", {}) or {}
+    role = profile.get("role") or meta.get("role") or ROLE_VIEWER
+    
+    if role == ROLE_ADMIN:
+        is_approved = True
+        is_rejected = False
+        rejection_reason = None
+    else:
+        is_approved = profile.get("is_approved")
+        if is_approved is None:
+            is_approved = meta.get("is_approved", False)
+            
+        is_rejected = profile.get("is_rejected")
+        if is_rejected is None:
+            is_rejected = meta.get("is_rejected", False)
+            
+        rejection_reason = profile.get("rejection_reason") or meta.get("rejection_reason")
+
     return AppUserOut(
         id=str(auth_user.id),
         email=getattr(auth_user, "email", None),
         full_name=profile.get("full_name") or _full_name_from_auth_user(auth_user),
-        role=profile.get("role", ROLE_VIEWER),
+        role=role,
         is_active=bool(profile.get("is_active", True)),
-        phone=profile.get("phone"),
-        company_or_agency=profile.get("company_or_agency"),
+        is_approved=is_approved,
+        is_rejected=is_rejected,
+        rejection_reason=rejection_reason,
+        phone=profile.get("phone") or meta.get("phone"),
+        company_or_agency=profile.get("company_or_agency") or meta.get("company_or_agency"),
         created_at=getattr(auth_user, "created_at", None),
         last_sign_in_at=getattr(auth_user, "last_sign_in_at", None),
     )
@@ -101,6 +123,24 @@ async def list_users(_: AuthUserOut = Depends(require_admin)):
         for auth_user in auth_users
     ]
     return sorted(users, key=lambda user: ((user.email or "").lower(), user.id))
+
+
+@router.get("/pending", response_model=list[AppUserOut])
+async def list_pending_users(_: AuthUserOut = Depends(require_admin)):
+    """Return all users who have registered but are not yet approved or rejected."""
+    db = get_db_client()
+    result = db.table("app_users").select("*").eq("is_approved", False).eq("is_rejected", False).execute()
+    pending_profiles = result.data or []
+
+    admin_client = _get_admin_client_or_503()
+    output = []
+    for profile in pending_profiles:
+        try:
+            auth_user = admin_client.admin.get_user_by_id(profile["id"]).user
+            output.append(_serialize_user(auth_user, profile))
+        except Exception:
+            pass
+    return output
 
 
 @router.post("/", response_model=AppUserOut, status_code=status.HTTP_201_CREATED)
@@ -186,6 +226,12 @@ async def update_user(
         profile_payload["role"] = payload.role
     if payload.is_active is not None:
         profile_payload["is_active"] = payload.is_active
+    if payload.is_approved is not None:
+        profile_payload["is_approved"] = payload.is_approved
+    if payload.is_rejected is not None:
+        profile_payload["is_rejected"] = payload.is_rejected
+    if payload.rejection_reason is not None:
+        profile_payload["rejection_reason"] = payload.rejection_reason
     if payload.phone is not None:
         profile_payload["phone"] = payload.phone
     if payload.company_or_agency is not None:
@@ -202,6 +248,108 @@ async def update_user(
         )
         if update_result.data:
             profile = update_result.data[0]
+
+    return _serialize_user(auth_user, profile)
+
+
+@router.post("/{user_id}/approve", response_model=AppUserOut)
+async def approve_user(
+    user_id: str,
+    _: AuthUserOut = Depends(require_admin),
+):
+    """Admin approves a pending user, granting them login access."""
+    admin_client = _get_admin_client_or_503()
+    try:
+        auth_user = admin_client.admin.get_user_by_id(user_id).user
+    except Exception as exc:
+        raise to_auth_http_exception(exc) from exc
+
+    db = get_db_client()
+    result = db.table("app_users").select("*").eq("id", user_id).execute()
+    profile = result.data[0] if result.data else {}
+    if profile.get("role") == ROLE_ADMIN:
+        raise HTTPException(status_code=409, detail="Admin accounts do not require approval.")
+
+    # 1. Update Supabase Auth user_metadata directly (always succeeds without requiring DB column)
+    current_meta = getattr(auth_user, "user_metadata", {}) or {}
+    new_meta = {**current_meta, "is_approved": True, "is_rejected": False, "rejection_reason": None}
+    try:
+        updated_auth = admin_client.admin.update_user_by_id(user_id, {"user_metadata": new_meta})
+        auth_user = updated_auth.user
+    except Exception as exc:
+        raise to_auth_http_exception(exc) from exc
+
+    # 2. Also update app_users table if the column exists
+    try:
+        updated = (
+            db.table("app_users")
+            .update({"is_approved": True, "is_rejected": False, "rejection_reason": None})
+            .eq("id", user_id)
+            .execute()
+        )
+        if updated.data:
+            profile = updated.data[0]
+    except Exception:
+        pass
+
+    return _serialize_user(auth_user, profile)
+
+
+class RejectUserRequest(BaseModel):
+    rejection_reason: str = Field(default="Your account was not approved.", min_length=1)
+
+
+@router.post("/{user_id}/reject", response_model=AppUserOut)
+async def reject_user(
+    user_id: str,
+    payload: RejectUserRequest,
+    _: AuthUserOut = Depends(require_admin),
+):
+    """Admin rejects a pending user with an optional reason displayed as a popup."""
+    admin_client = _get_admin_client_or_503()
+    try:
+        auth_user = admin_client.admin.get_user_by_id(user_id).user
+    except Exception as exc:
+        raise to_auth_http_exception(exc) from exc
+
+    db = get_db_client()
+    result = db.table("app_users").select("*").eq("id", user_id).execute()
+    profile = result.data[0] if result.data else {}
+    if profile.get("role") == ROLE_ADMIN:
+        raise HTTPException(status_code=409, detail="Cannot reject an admin account.")
+    if _count_admin_users() <= 1 and profile.get("role") == ROLE_ADMIN:
+        raise HTTPException(status_code=409, detail="At least one admin must remain.")
+
+    # 1. Update Supabase Auth user_metadata directly
+    current_meta = getattr(auth_user, "user_metadata", {}) or {}
+    new_meta = {
+        **current_meta,
+        "is_approved": False,
+        "is_rejected": True,
+        "rejection_reason": payload.rejection_reason,
+    }
+    try:
+        updated_auth = admin_client.admin.update_user_by_id(user_id, {"user_metadata": new_meta})
+        auth_user = updated_auth.user
+    except Exception as exc:
+        raise to_auth_http_exception(exc) from exc
+
+    # 2. Also update app_users table if the column exists
+    try:
+        updated = (
+            db.table("app_users")
+            .update({
+                "is_approved": False,
+                "is_rejected": True,
+                "rejection_reason": payload.rejection_reason,
+            })
+            .eq("id", user_id)
+            .execute()
+        )
+        if updated.data:
+            profile = updated.data[0]
+    except Exception:
+        pass
 
     return _serialize_user(auth_user, profile)
 

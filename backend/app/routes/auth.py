@@ -3,6 +3,7 @@ Authentication routes.
 """
 
 from fastapi import APIRouter, Depends
+from fastapi.responses import JSONResponse
 
 from app.models import (
     AuthSessionOut,
@@ -11,6 +12,7 @@ from app.models import (
     BootstrapAdminRequest,
     LoginRequest,
     RefreshRequest,
+    RegisterPendingResponse,
     UserRegisterRequest,
 )
 from app.services.auth import (
@@ -36,9 +38,10 @@ async def bootstrap_admin_account(payload: BootstrapAdminRequest):
     return bootstrap_admin(payload.email, payload.password, payload.full_name)
 
 
-@router.post("/register", response_model=AuthSessionOut)
+@router.post("/register", response_model=RegisterPendingResponse, status_code=202)
 async def register(payload: UserRegisterRequest):
-    return register_new_user(
+    """Register a new user. Account will be inactive until an admin approves it."""
+    result = register_new_user(
         email=payload.email,
         password=payload.password,
         full_name=payload.full_name,
@@ -46,6 +49,7 @@ async def register(payload: UserRegisterRequest):
         phone=payload.phone,
         company_or_agency=payload.company_or_agency,
     )
+    return JSONResponse(status_code=202, content=result)
 
 
 @router.post("/login", response_model=AuthSessionOut)
