@@ -58,16 +58,20 @@ export default function PaymentModal({ tenant, property, amount, monthCovered, o
         currency:    'INR',
         name:        'RentFlow',
         description: `Rent payment — ${new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}`,
-        order_id:    order.payment_gateway_order_id,  // Razorpay order ID
         prefill: {
           name:    tenant.name,
           email:   tenant.email  || '',
           contact: tenant.phone  || '',
         },
         theme: { color: '#f59e0b' },   // amber/gold
+      }
 
-        // ── On payment SUCCESS ──────────────────────────────────────
-        handler: async (response) => {
+      if (order.payment_gateway_order_id && !order.payment_gateway_order_id.startsWith('rzp_fallback_')) {
+        options.order_id = order.payment_gateway_order_id
+      }
+
+      // ── On payment SUCCESS ──────────────────────────────────────
+      options.handler = async (response) => {
           try {
             const targetMonth = monthCovered || new Date().toISOString().slice(0, 7);
             // 3. Verify signature on backend & log payment in DB
@@ -87,7 +91,6 @@ export default function PaymentModal({ tenant, property, amount, monthCovered, o
             setMessage(err.response?.data?.detail || 'Payment verification failed.')
             setStep('error')
           }
-        },
       }
 
       if (!window.Razorpay) {

@@ -414,9 +414,15 @@ async def payment_webhook(payload: dict):
 
     order = order_res.data[0]
 
-    # Idempotency check: if already paid, return early
+    # Idempotency check: if already paid, verify if payment entry was already recorded
     if order.get("payment_status") == "PAID" and status == "success":
-        return {"message": "Order already processed"}
+        from datetime import date as _dt
+        m_cov = payload.get("month_covered") or _dt.today().strftime("%Y-%m")
+        t_id = payload.get("tenant_id")
+        if t_id:
+            existing = sb.table("payments").select("id").eq("tenant_id", t_id).eq("month_covered", m_cov).execute()
+            if existing.data:
+                return {"message": "Order already processed"}
 
     if status == "success":
         # ── 3. Mark order as PAID ───────────────────────────────────────────────
