@@ -171,12 +171,12 @@ export default function PaymentModal({ tenant, property, amount, monthCovered, o
                 <div className="bg-[var(--color-surface-dark)] rounded-xl p-2.5 border border-[var(--color-border)] flex items-center justify-between text-xs">
                   <div>
                     <span className="text-[var(--color-text-muted)] block text-[10px]">DOMESTIC VISA TEST CARD</span>
-                    <span className="font-mono text-emerald-400 font-semibold tracking-wider">4718 6091 0820 4366</span>
+                    <span className="font-mono text-emerald-400 font-semibold tracking-wider">4100 2800 0000 1007</span>
                     <span className="text-[var(--color-text-muted)] text-[10px] ml-2">(Exp: 12/28 · CVV: 123)</span>
                   </div>
                   <button
                     type="button"
-                    onClick={() => copyToClipboard('4718609108204366', 'card')}
+                    onClick={() => copyToClipboard('4100280000001007', 'card')}
                     className="p-1.5 rounded-lg bg-[var(--color-surface)] hover:bg-[var(--color-surface-light)] text-amber-400 transition-colors flex items-center gap-1 text-[11px] font-bold cursor-pointer"
                     title="Copy Card Number"
                   >
@@ -188,12 +188,12 @@ export default function PaymentModal({ tenant, property, amount, monthCovered, o
                 <div className="bg-[var(--color-surface-dark)] rounded-xl p-2.5 border border-[var(--color-border)] flex items-center justify-between text-xs">
                   <div>
                     <span className="text-[var(--color-text-muted)] block text-[10px]">DOMESTIC MASTERCARD TEST CARD</span>
-                    <span className="font-mono text-amber-300 font-semibold tracking-wider">5104 0600 0000 0008</span>
+                    <span className="font-mono text-amber-300 font-semibold tracking-wider">5555 5100 0008 1006</span>
                     <span className="text-[var(--color-text-muted)] text-[10px] ml-2">(Exp: 12/28 · CVV: 123)</span>
                   </div>
                   <button
                     type="button"
-                    onClick={() => copyToClipboard('5104060000000008', 'card2')}
+                    onClick={() => copyToClipboard('5555510000081006', 'card2')}
                     className="p-1.5 rounded-lg bg-[var(--color-surface)] hover:bg-[var(--color-surface-light)] text-amber-400 transition-colors flex items-center gap-1 text-[11px] font-bold cursor-pointer"
                     title="Copy Card Number"
                   >
@@ -248,7 +248,7 @@ export default function PaymentModal({ tenant, property, amount, monthCovered, o
               <div className="w-9 h-9 border-2 border-amber-400 border-t-transparent rounded-full animate-spin mx-auto" />
               <p className="text-white font-bold text-sm">Opening Razorpay Gateway…</p>
               <p className="text-[var(--color-text-muted)] text-xs max-w-xs mx-auto">
-                Complete payment in the Razorpay popup using test card <code className="text-emerald-400">4718 6091 0820 4366</code> or UPI <code className="text-amber-300">success@razorpay</code>.
+                Complete payment in the Razorpay popup using test card <code className="text-emerald-400">4100 2800 0000 1007</code> or UPI <code className="text-amber-300">success@razorpay</code>.
               </p>
             </div>
           )}
@@ -286,7 +286,7 @@ export default function PaymentModal({ tenant, property, amount, monthCovered, o
                 <p className="text-rose-400 font-bold">Payment Failed</p>
                 <p className="text-[var(--color-text-muted)] text-xs mt-1.5 px-4">{message}</p>
                 <p className="text-[var(--color-text-muted)] text-[11px] mt-2">
-                  Remember: real cards fail in test mode. Use card <strong className="text-emerald-400">4718 6091 0820 4366</strong> or UPI <strong className="text-amber-300">success@razorpay</strong>.
+                  Remember: real cards fail in test mode. Use card <strong className="text-emerald-400">4100 2800 0000 1007</strong> or UPI <strong className="text-amber-300">success@razorpay</strong>.
                 </p>
               </div>
               <div className="flex gap-3 justify-center pt-2">
