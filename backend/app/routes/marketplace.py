@@ -67,8 +67,34 @@ async def list_listings(
     if max_price is not None:
         query = query.lte("price", max_price)
         
-    result = query.order("created_at", desc=True).execute()
-    return result.data
+    try:
+        result = query.order("created_at", desc=True).execute()
+    except Exception as exc:
+        err_msg = str(exc)
+        if "property_type" in err_msg or "42703" in err_msg:
+            # Fallback if property_type column does not exist in listings table
+            fallback_query = sb.table("listings").select("*")
+            if status:
+                fallback_query = fallback_query.eq("status", status)
+            if city:
+                fallback_query = fallback_query.ilike("city", f"%{city}%")
+            if category_id:
+                fallback_query = fallback_query.eq("category_id", category_id)
+            if listing_type:
+                fallback_query = fallback_query.eq("listing_type", listing_type)
+            if min_price is not None:
+                fallback_query = fallback_query.gte("price", min_price)
+            if max_price is not None:
+                fallback_query = fallback_query.lte("price", max_price)
+            result = fallback_query.order("created_at", desc=True).execute()
+        else:
+            raise
+
+    items = result.data or []
+    for item in items:
+        if "property_type" not in item:
+            item["property_type"] = "residential"
+    return items
 
 
 @router.get("/listings/{listing_id}", response_model=ListingOut)
@@ -92,9 +118,29 @@ async def create_listing(
     data["seller_id"] = current_user.id
     data["status"] = "ACTIVE"
     data["property_type"] = data.get("property_type", "residential")
-    
-    result = sb.table("listings").insert(data).execute()
-    return result.data[0]
+    if not data.get("category_id"):
+        data["category_id"] = None
+    if not data.get("locality"):
+        data["locality"] = None
+    if not data.get("description"):
+        data["description"] = None
+
+    try:
+        result = sb.table("listings").insert(data).execute()
+    except Exception as exc:
+        err_msg = str(exc)
+        if "property_type" in err_msg or "commercial_details" in err_msg or "42703" in err_msg:
+            # Column does not exist in schema; omit and insert
+            data.pop("property_type", None)
+            data.pop("commercial_details", None)
+            result = sb.table("listings").insert(data).execute()
+        else:
+            raise
+
+    item = result.data[0]
+    if "property_type" not in item:
+        item["property_type"] = "residential"
+    return item
 
 
 @router.post("/commercial-listings", response_model=ListingOut, status_code=201)
@@ -120,9 +166,28 @@ async def create_commercial_listing(
     # Store commercial-specific details as JSONB
     commercial_details = payload.commercial_details.model_dump(exclude_none=False)
     data["commercial_details"] = commercial_details
+    if not data.get("category_id"):
+        data["category_id"] = None
+    if not data.get("locality"):
+        data["locality"] = None
+    if not data.get("description"):
+        data["description"] = None
 
-    result = sb.table("listings").insert(data).execute()
-    return result.data[0]
+    try:
+        result = sb.table("listings").insert(data).execute()
+    except Exception as exc:
+        err_msg = str(exc)
+        if "property_type" in err_msg or "commercial_details" in err_msg or "42703" in err_msg:
+            data.pop("property_type", None)
+            data.pop("commercial_details", None)
+            result = sb.table("listings").insert(data).execute()
+        else:
+            raise
+
+    item = result.data[0]
+    if "property_type" not in item:
+        item["property_type"] = "commercial"
+    return item
 
 
 @router.put("/listings/{listing_id}", response_model=ListingOut)

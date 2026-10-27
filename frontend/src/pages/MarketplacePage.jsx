@@ -125,6 +125,9 @@ export default function MarketplacePage() {
                 ...newListing,
                 price: Number(newListing.price),
                 images: uploadedImages,
+                category_id: newListing.category_id || null,
+                locality: newListing.locality || null,
+                description: newListing.description || null,
             });
             toast.success('Listing created successfully!');
             setShowModal(false);
@@ -144,7 +147,11 @@ export default function MarketplacePage() {
             setListings(list);
         } catch (err) {
             console.error(err);
-            toast.error(err?.response?.data?.detail || 'Failed to create listing.');
+            const detail = err?.response?.data?.detail;
+            const msg = Array.isArray(detail)
+                ? detail.map(d => d.msg || JSON.stringify(d)).join(', ')
+                : (typeof detail === 'string' ? detail : 'Failed to create listing.');
+            toast.error(msg);
         } finally {
             setSubmitting(false);
         }
